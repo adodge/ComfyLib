@@ -17,6 +17,27 @@ possible, possibly without changing the major version of the library.
 The interface layer will be consistent within a major version of the library,
 so that's what you should rely on.
 
+# Design goals
+
+0. The implementation from ComfyUI should be changed as little as possible, and
+in very predictable ways if so.  (Changing import paths, for example.)  This is
+to make it easier to merge in changes from upstream, so the library can keep
+apace with the work being done on the ComfyUI project.
+1. The API should expose the same breadth of functionality available by using
+the node editor in ComfyUI.  So, at the very least, we're probably targeting
+one function/method per node.
+2. Opaque types should be preferred.  Rather than pass tensors around, we're
+going to wrap them in objects that hide the implementation.  This gives us
+maximum flexibility to keep the API the same in case ComfyUI change things
+drastically.
+3. Explicit rather than implicit behavior.  ComfyUI does a lot of clever things
+to provide a good user experience, like automatically rounding down sizes, or
+managing VRAM.  As much as possible, we're going to try to make these explicit
+options for the library-user.
+4. The API should be should be typed as strictly as possible.  Enums should be
+used instead of strings, when applicable, etc.
+5. The interface layer should have unit tests
+
 # Installation
 
 For now you can install from github:
@@ -30,9 +51,11 @@ pip3 install git+https://github.com/adodge/Comfy-Lib
 ```python3
 import comfy
 
+config = comfy.CheckpointConfig.from_built_in(comfy.BuiltInCheckpointConfigName.V1)
+
 # Read in a checkpoint
 sd, clip, vae = comfy.load_checkpoint(
-    config_filepath="comfy/configs/v1-inference.yaml",
+    config=config,
     checkpoint_filepath="v1-5-pruned-emaonly.safetensors",
     embedding_directory=None,
 )
@@ -54,25 +77,5 @@ img2.save("out.png")
 ```
 
 # API
-
-Design goals:
-
-0. The implementation from ComfyUI should be changed as little as possible, and
-in very predictable ways if so.  (Changing import paths, for example.)  This is
-to make it easier to merge in changes from upstream, so the library can keep
-apace with the work being done on the ComfyUI project.
-1. The API should expose the same breadth of functionality available by using
-the node editor in ComfyUI.  So, at the very least, we're probably targeting
-one function/method per node.
-2. Opaque types should be preferred.  Rather than pass tensors around, we're
-going to wrap them in objects that hide the implementation.  This gives us
-maximum flexibility to keep the API the same in case ComfyUI change things
-drastically.
-3. Explicit rather than implicit behavior.  ComfyUI does a lot of clever things
-to provide a good user experience, like automatically rounding down sizes, or
-managing VRAM.  As much as possible, we're going to try to make these explicit
-options for the library-user.
-4. The API should be should be typed as strictly as possible.  Enums should be
-used instead of strings, when applicable, etc.
 
 *(API documentation in progress)*
