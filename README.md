@@ -6,11 +6,16 @@ the UI.  It's stripped down and packaged as a library, for use in other projects
 ComfyUI is actively maintained (as of writing), and has implementations of a
 lot of the cool cutting-edge Stable Diffusion stuff.  The implementation is as
 unmodified as possible, to hopefully make it easier to merge in upstream
-improvements.  In order to provide a consistent API, an interface layer has
+improvements.
+
+In order to provide a consistent API, an interface layer has
 been added.  Directly importing names not in the API should be considered
 dangerous, as the ComfyUI maintainers might change how things are arranged
-whenever they want.  The interface layer will be consistent though, within a
-major version of the library.
+whenever they want, and those changes will be merged into this fork as soon as
+possible, possibly without changing the major version of the library.
+
+The interface layer will be consistent within a major version of the library,
+so that's what you should rely on.
 
 # Installation
 
@@ -50,5 +55,24 @@ img2.save("out.png")
 
 # API
 
-## (WIP)
+Design goals:
 
+0. The implementation from ComfyUI should be changed as little as possible, and
+in very predictable ways if so.  (Changing import paths, for example.)  This is
+to make it easier to merge in changes from upstream, so the library can keep
+apace with the work being done on the ComfyUI project.
+1. The API should expose the same breadth of functionality available by using
+the node editor in ComfyUI.  So, at the very least, we're probably targeting
+one function/method per node.
+2. Opaque types should be preferred.  Rather than pass tensors around, we're
+going to wrap them in objects that hide the implementation.  This gives us
+maximum flexibility to keep the API the same in case ComfyUI change things
+drastically.
+3. Explicit rather than implicit behavior.  ComfyUI does a lot of clever things
+to provide a good user experience, like automatically rounding down sizes, or
+managing VRAM.  As much as possible, we're going to try to make these explicit
+options for the library-user.
+4. The API should be should be typed as strictly as possible.  Enums should be
+used instead of strings, when applicable, etc.
+
+*(API documentation in progress)*
