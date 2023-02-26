@@ -13,11 +13,18 @@ from comfy.hazard.nodes import common_ksampler
 from comfy.hazard.sd import load_checkpoint as _load_checkpoint, ModelPatcher, VAE, CLIP
 from comfy.hazard.utils import common_upscale
 
+def _divide_size_by_n(width: int, height: int, n: int) -> Tuple[int, int]:
+    if width % n != 0 or height % n != 0:
+        raise ValueError(f"width and height must be multiples of {n} (actual: {width}, {height})")
+    return width // n, height // n
+
+
+def _divide_size_by_64(width: int, height: int) -> Tuple[int, int]:
+    return _divide_size_by_n(width, height, 64)
+
 
 def _divide_size_by_8(width: int, height: int) -> Tuple[int, int]:
-    if width % 8 != 0 or height % 8 != 0:
-        raise ValueError("width and height must be multiples of 8")
-    return width // 8, height // 8
+    return _divide_size_by_n(width, height, 8)
 
 
 class Sampler(Enum):
@@ -120,7 +127,7 @@ class StableDiffusionModel:
 
     def sample(
             self, positive: Conditioning, negative: Conditioning, latent_image: LatentImage,
-            seed: int, steps: int, cfg_strength: float, sampler: Sampler, scheduler: Scheduler,
+            seed: int, steps: int, cfg_scale: float, sampler: Sampler, scheduler: Scheduler,
             denoise_strength: float,
     ) -> LatentImage:
         device = "cuda"
@@ -130,7 +137,7 @@ class StableDiffusionModel:
             model=self._model,
             seed=seed,
             steps=steps,
-            cfg=cfg_strength,
+            cfg=cfg_scale,
             sampler_name=sampler.value,
             scheduler=scheduler.value,
             positive=positive.to_internal_representation(),
@@ -145,6 +152,15 @@ class StableDiffusionModel:
 class VAEModel:
     def __init__(self, model: VAE):
         self._model = model
+
+    def encode(self, image: Image) -> LatentImage:
+        arr = np.array(image)
+        height, width, channels = arr.shape
+        assert channels == 3
+        _divide_size_by_64(width, height)
+        arr = Tensor(arr.reshape((1, height, width, channels)))
+        img = self._model.encode(arr)
+        return LatentImage(img)
 
     def decode(self, latent_image: LatentImage) -> Image:
         img: Tensor = self._model.decode(latent_image.to_internal_representation()['samples'])
