@@ -1,9 +1,12 @@
+import io
+import os.path
 from enum import Enum
 from typing import Tuple, Optional
 
 import numpy as np
 import torch
 from PIL import Image
+from omegaconf import OmegaConf
 from torch import Tensor
 
 from comfy.hazard.nodes import common_ksampler
@@ -82,14 +85,36 @@ class Conditioning:
         return [[self._data, {}]]
 
 
+class BuiltInCheckpointConfigName(Enum):
+    V1 = "v1-inference.yaml"
+    V2 = "v2-inference.yaml"
+
+
+class CheckpointConfig:
+    def __init__(self, config_path: str):
+        self.config = OmegaConf.load(config_path)
+
+    @classmethod
+    def from_built_in(cls, name: BuiltInCheckpointConfigName):
+        path = os.path.join(os.path.dirname(__file__), "configs", name.value)
+        return cls(config_path=path)
+
+    def to_file_like(self):
+        file_like = io.StringIO()
+        OmegaConf.save(self.config, f=file_like)
+        file_like.seek(0)
+        return file_like
+
+
 class StableDiffusionModel:
     def __init__(self, model: ModelPatcher):
         self._model = model
 
     @classmethod
-    def from_checkpoint(cls, checkpoint_filepath: str, config_filepath: str):
+    def from_checkpoint(cls, checkpoint_filepath: str, config: CheckpointConfig):
         stable_diffusion, _, _ = _load_checkpoint(
-            config_filepath, checkpoint_filepath,
+            config_path=config.to_file_like(),
+            ckpt_path=checkpoint_filepath,
             output_vae=False, output_clip=False)
         return cls(stable_diffusion)
 
@@ -125,7 +150,7 @@ class VAEModel:
         img: Tensor = self._model.decode(latent_image.to_internal_representation()['samples'])
         if img.shape[0] != 1:
             raise RuntimeError(f"Expected the output of vae.decode to have shape[0]==1.  shape={img.shape}")
-        arr = img.numpy(force=True).reshape(img.shape[1:])
+        arr = img.detach().cpu().numpy().reshape(img.shape[1:])
         arr = (np.clip(arr, 0, 1) * 255).round().astype("uint8")
         return Image.fromarray(arr)
 
@@ -140,10 +165,10 @@ class CLIPModel:
 
 
 def load_checkpoint(
-        checkpoint_filepath: str, config_filepath: str, embedding_directory: Optional[str]
+        checkpoint_filepath: str, config: CheckpointConfig, embedding_directory: Optional[str]
 ) -> Tuple[StableDiffusionModel, CLIPModel, VAEModel]:
     stable_diffusion, clip, vae = _load_checkpoint(
-        config_filepath, checkpoint_filepath,
+        config.to_file_like(), checkpoint_filepath,
         output_vae=True, output_clip=True,
         embedding_directory=embedding_directory)
 
