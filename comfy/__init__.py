@@ -1,16 +1,18 @@
 import io
 import os.path
 from enum import Enum
-from typing import Tuple, Optional, List, Iterable, Dict
+from typing import Dict, Iterable, List, Optional, Tuple
 
 import numpy as np
 import torch
-from PIL import Image
 from omegaconf import OmegaConf
+from PIL import Image
 from torch import Tensor
 
 from comfy.hazard.nodes import common_ksampler
-from comfy.hazard.sd import load_checkpoint as _load_checkpoint, ModelPatcher, VAE, CLIP, load_clip
+from comfy.hazard.sd import CLIP, VAE, ModelPatcher
+from comfy.hazard.sd import load_checkpoint as _load_checkpoint
+from comfy.hazard.sd import load_clip
 from comfy.hazard.utils import common_upscale
 
 
@@ -106,8 +108,14 @@ class LatentImage:
         return cls(img)
 
     @classmethod
-    def combine(cls, latent_to: "LatentImage", latent_from: "LatentImage", x: int, y: int,
-                feather: int) -> "LatentImage":
+    def combine(
+        cls,
+        latent_to: "LatentImage",
+        latent_from: "LatentImage",
+        x: int,
+        y: int,
+        feather: int,
+    ) -> "LatentImage":
         # LatentComposite
         x, y, feather = _check_divisible_by_8(x, y, feather)
 
@@ -117,37 +125,50 @@ class LatentImage:
         width, height = latent_from.size()
 
         if feather == 0:
-            s[:, :, y:y + height, x:x + width] = latent_from._data[:, :, :height - y, :width - x]
+            s[:, :, y : y + height, x : x + width] = latent_from._data[
+                :, :, : height - y, : width - x
+            ]
             return LatentImage(s, latent_to._noise_mask)
 
-        s_from = latent_to._data[:, :, :height - y, :width - x]
+        s_from = latent_to._data[:, :, : height - y, : width - x]
         mask = torch.ones_like(s_from)
 
         for t in range(feather):
-            c = ((1.0 / feather) * (t + 1))
+            c = (1.0 / feather) * (t + 1)
             if y != 0:
-                mask[:, :, t:1 + t, :] *= c
+                mask[:, :, t : 1 + t, :] *= c
             if y + height < height:
-                mask[:, :, height - 1 - t:height - t, :] *= c
+                mask[:, :, height - 1 - t : height - t, :] *= c
             if x != 0:
-                mask[:, :, :, t:1 + t] *= c
+                mask[:, :, :, t : 1 + t] *= c
             if x + width < width:
-                mask[:, :, :, width - 1 - t:width - t] *= c
+                mask[:, :, :, width - 1 - t : width - t] *= c
 
         rev_mask = torch.ones_like(mask) - mask
-        s[:, :, y:y + height, x:x + width] = (s_from[:, :, :height - y, :width - x]
-                                              * mask + s[:, :, y:y + height, x:x + width]
-                                              * rev_mask)
+        s[:, :, y : y + height, x : x + width] = (
+            s_from[:, :, : height - y, : width - x] * mask
+            + s[:, :, y : y + height, x : x + width] * rev_mask
+        )
 
         return LatentImage(s, latent_to._noise_mask)
 
     def upscale(
-            self, width: int, height: int, upscale_method: UpscaleMethod, crop_method: CropMethod
+        self,
+        width: int,
+        height: int,
+        upscale_method: UpscaleMethod,
+        crop_method: CropMethod,
     ) -> "LatentImage":
         # LatentUpscale
         width, height = _check_divisible_by_8(width, height)
 
-        img = common_upscale(self._data.clone().detach(), width, height, upscale_method.value, crop_method.value)
+        img = common_upscale(
+            self._data.clone().detach(),
+            width,
+            height,
+            upscale_method.value,
+            crop_method.value,
+        )
         return LatentImage(img)
 
     def set_mask(self, mask: Image) -> "LatentImage":
@@ -159,7 +180,7 @@ class LatentImage:
     def to_internal_representation(self):
         out = {"samples": self._data}
         if self._noise_mask is not None:
-            out['noise_mask'] = self._noise_mask
+            out["noise_mask"] = self._noise_mask
         return out
 
 
@@ -178,8 +199,16 @@ class Conditioning:
             out._data.extend(cond._data)
         return out
 
-    def set_area(self, width: int, height: int, x: int, y: int, strength: float,
-                 min_sigma: float = 0.0, max_sigma: float = 99.0) -> "Conditioning":
+    def set_area(
+        self,
+        width: int,
+        height: int,
+        x: int,
+        y: int,
+        strength: float,
+        min_sigma: float = 0.0,
+        max_sigma: float = 99.0,
+    ) -> "Conditioning":
         # ConditioningSetArea
         width, height = _check_divisible_by_8(width, height)
         x, y = _check_divisible_by_8(x, y)
@@ -188,10 +217,10 @@ class Conditioning:
 
         for t, m in self._data:
             n = (t, m.copy())
-            n[1]['area'] = (height, width, y, x)
-            n[1]['strength'] = strength
-            n[1]['min_sigma'] = min_sigma
-            n[1]['max_sigma'] = max_sigma
+            n[1]["area"] = (height, width, y, x)
+            n[1]["strength"] = strength
+            n[1]["min_sigma"] = min_sigma
+            n[1]["max_sigma"] = max_sigma
             c._data.append(n)
         return c
 
@@ -225,18 +254,29 @@ class StableDiffusionModel:
         self._model = model
 
     @classmethod
-    def from_checkpoint(cls, checkpoint_filepath: str, config: CheckpointConfig) -> "StableDiffusionModel":
+    def from_checkpoint(
+        cls, checkpoint_filepath: str, config: CheckpointConfig
+    ) -> "StableDiffusionModel":
         # CheckpointLoader
         stable_diffusion, _, _ = _load_checkpoint(
             config_path=config.to_file_like(),
             ckpt_path=checkpoint_filepath,
-            output_vae=False, output_clip=False)
+            output_vae=False,
+            output_clip=False,
+        )
         return cls(stable_diffusion)
 
     def sample(
-            self, positive: Conditioning, negative: Conditioning, latent_image: LatentImage,
-            seed: int, steps: int, cfg_scale: float, sampler: Sampler, scheduler: Scheduler,
-            denoise_strength: float,
+        self,
+        positive: Conditioning,
+        negative: Conditioning,
+        latent_image: LatentImage,
+        seed: int,
+        steps: int,
+        cfg_scale: float,
+        sampler: Sampler,
+        scheduler: Scheduler,
+        denoise_strength: float,
     ) -> LatentImage:
         # KSampler
 
@@ -255,15 +295,23 @@ class StableDiffusionModel:
             denoise=denoise_strength,
         )
 
-        return LatentImage(img[0]['samples'])
+        return LatentImage(img[0]["samples"])
 
     def advanced_sample(
-            self, positive: Conditioning, negative: Conditioning, latent_image: LatentImage,
-            seed: int, steps: int, cfg_scale: float, sampler: Sampler, scheduler: Scheduler,
-            denoise_strength: float,
-
-            start_at_step: int, end_at_step: int,
-            add_noise: bool, return_with_leftover_noise: bool,
+        self,
+        positive: Conditioning,
+        negative: Conditioning,
+        latent_image: LatentImage,
+        seed: int,
+        steps: int,
+        cfg_scale: float,
+        sampler: Sampler,
+        scheduler: Scheduler,
+        denoise_strength: float,
+        start_at_step: int,
+        end_at_step: int,
+        add_noise: bool,
+        return_with_leftover_noise: bool,
     ) -> LatentImage:
         # KSamplerAdvanced
         device = "cuda"
@@ -293,7 +341,7 @@ class StableDiffusionModel:
             last_step=end_at_step,
         )
 
-        return LatentImage(img[0]['samples'])
+        return LatentImage(img[0]["samples"])
 
 
 class VAEModel:
@@ -321,9 +369,12 @@ class VAEModel:
         kernel_tensor = torch.ones((1, 1, 6, 6))
 
         mask_erosion = torch.clamp(
-            torch.nn.functional.conv2d((1.0 - mask_t.round())[None],
-                                       kernel_tensor, padding=3),
-            0, 1)
+            torch.nn.functional.conv2d(
+                (1.0 - mask_t.round())[None], kernel_tensor, padding=3
+            ),
+            0,
+            1,
+        )
 
         for i in range(3):
             img_t[:, :, :, i] -= 0.5
@@ -336,9 +387,13 @@ class VAEModel:
     def decode(self, latent_image: LatentImage) -> Image:
         # VAEDecode
 
-        img: Tensor = self._model.decode(latent_image.to_internal_representation()['samples'])
+        img: Tensor = self._model.decode(
+            latent_image.to_internal_representation()["samples"]
+        )
         if img.shape[0] != 1:
-            raise RuntimeError(f"Expected the output of vae.decode to have shape[0]==1.  shape={img.shape}")
+            raise RuntimeError(
+                f"Expected the output of vae.decode to have shape[0]==1.  shape={img.shape}"
+            )
         arr = img.detach().cpu().numpy().reshape(img.shape[1:])
         arr = (np.clip(arr, 0, 1) * 255).round().astype("uint8")
         return Image.fromarray(arr)
@@ -350,14 +405,16 @@ class CLIPModel:
 
     @classmethod
     def from_model(
-            cls, model_filepath: str,
-            stop_at_clip_layer: int = -1,
-            embedding_directory: Optional[str] = None,
+        cls,
+        model_filepath: str,
+        stop_at_clip_layer: int = -1,
+        embedding_directory: Optional[str] = None,
     ) -> "CLIPModel":
         # CLIPLoader
 
-        clip = load_clip(ckpt_path=model_filepath,
-                         embedding_directory=embedding_directory)
+        clip = load_clip(
+            ckpt_path=model_filepath, embedding_directory=embedding_directory
+        )
         clip.clip_layer(stop_at_clip_layer)
 
         return CLIPModel(clip)
@@ -369,12 +426,17 @@ class CLIPModel:
 
 
 def load_checkpoint(
-        checkpoint_filepath: str, config: CheckpointConfig, embedding_directory: Optional[str] = None
+    checkpoint_filepath: str,
+    config: CheckpointConfig,
+    embedding_directory: Optional[str] = None,
 ) -> Tuple[StableDiffusionModel, CLIPModel, VAEModel]:
     # CheckpointLoader
     stable_diffusion, clip, vae = _load_checkpoint(
-        config.to_file_like(), checkpoint_filepath,
-        output_vae=True, output_clip=True,
-        embedding_directory=embedding_directory)
+        config.to_file_like(),
+        checkpoint_filepath,
+        output_vae=True,
+        output_clip=True,
+        embedding_directory=embedding_directory,
+    )
 
     return StableDiffusionModel(stable_diffusion), CLIPModel(clip), VAEModel(vae)
