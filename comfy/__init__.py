@@ -141,7 +141,7 @@ class LatentImage:
 
         return LatentImage(s, latent_to._noise_mask)
 
-    def latent_upscale(
+    def upscale(
             self, width: int, height: int, upscale_method: UpscaleMethod, crop_method: CropMethod
     ) -> "LatentImage":
         # LatentUpscale
