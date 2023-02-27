@@ -55,12 +55,14 @@ pip3 install git+https://github.com/adodge/Comfy-Lib
 # Example
 
 ```python3
+import comfy.stable_diffusion
+import comfy.latent_image
 import comfy
 
-config = comfy.CheckpointConfig.from_built_in(comfy.BuiltInCheckpointConfigName.V1)
+config = comfy.stable_diffusion.CheckpointConfig.from_built_in(comfy.stable_diffusion.BuiltInCheckpointConfigName.V1)
 
 # Read in a checkpoint
-sd, clip, vae = comfy.load_checkpoint(
+sd, clip, vae = comfy.stable_diffusion.load_checkpoint(
     config=config,
     checkpoint_filepath="v1-5-pruned-emaonly.safetensors",
     embedding_directory=None,
@@ -71,9 +73,10 @@ pos = clip.encode("an astronaut")
 neg = clip.encode("")
 
 # Run the sampler
-img0 = comfy.LatentImage.empty(512, 512)
-img1 = sd.sample(positive= pos, negative=neg, latent_image=img0, seed=42, steps=20, cfg_strength=7,
-                 sampler=comfy.Sampler.SAMPLE_EULER, scheduler=comfy.Scheduler.NORMAL, denoise_strength=1.0)
+img0 = comfy.latent_image.LatentImage.empty(512, 512)
+img1 = sd.sample(positive=pos, negative=neg, latent_image=img0, seed=42, steps=20, cfg_strength=7,
+                 sampler=comfy.stable_diffusion.Sampler.SAMPLE_EULER, scheduler=comfy.stable_diffusion.Scheduler.NORMAL,
+                 denoise_strength=1.0)
 
 # Run the VAE to get a Pillow Image
 img2 = vae.decode(latent_image=img1)
