@@ -1,4 +1,10 @@
-(WIP)
+# This is a work in progress
+
+All the talk about having a reliable interface below is aspirational.  The
+interface is in flux at the moment, and no guarantee of the master branch
+working are made, yet.  Soon.
+
+----
 
 This is the [ComfyUI](https://github.com/comfyanonymous/ComfyUI), but without
 the UI.  It's stripped down and packaged as a library, for use in other projects.
