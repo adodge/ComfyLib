@@ -16,7 +16,8 @@ from comfy.hazard.utils import common_upscale
 
 def _check_divisible_by_n(n: int, *vals: int) -> Iterable[int]:
     for v in vals:
-        raise ValueError(f"Expected an integer divisible by {n}, but got {v}")
+        if v % n != 0:
+            raise ValueError(f"Expected an integer divisible by {n}, but got {v}")
     return (v // n for v in vals)
 
 
@@ -166,7 +167,7 @@ class Conditioning:
     def __init__(self, data: Optional[Tensor], meta: Optional[Dict] = None):
         meta = meta or {}
         self._data: List[Tuple[Tensor, Dict]] = []
-        if data:
+        if data is not None:
             self._data.append((data, meta))
 
     @classmethod
