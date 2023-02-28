@@ -1,6 +1,6 @@
 import abc
 from enum import Enum
-from typing import Iterable, Tuple, Optional
+from typing import Iterable, Optional, Tuple
 
 import numpy as np
 import torch
@@ -76,15 +76,16 @@ def _update_device(device: Optional[Device], obj: Tensor) -> Device:
         return Device.MIXED
 
 
-class DeviceLocal:#(abc.ABC):
+class DeviceLocal:  # (abc.ABC):
     """
     A class for objects that can be moved from one device to another.
     """
-    #@abc.abstractmethod
+
+    # @abc.abstractmethod
     def to(self, device: Device):
         raise NotImplementedError
 
-    #@abc.abstractmethod
+    # @abc.abstractmethod
     @property
     def device(self) -> Device:
         raise NotImplementedError

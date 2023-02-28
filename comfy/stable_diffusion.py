@@ -5,12 +5,12 @@ from typing import Optional, Tuple
 
 from omegaconf import OmegaConf
 
-from comfy.conditioning import Conditioning
-from comfy.latent_image import LatentImage
 from comfy.clip import CLIPModel
+from comfy.conditioning import Conditioning
 from comfy.hazard.nodes import common_ksampler
 from comfy.hazard.sd import ModelPatcher
 from comfy.hazard.sd import load_checkpoint as _load_checkpoint
+from comfy.latent_image import LatentImage
 from comfy.vae import VAEModel
 
 

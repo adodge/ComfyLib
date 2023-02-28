@@ -6,8 +6,14 @@ from PIL import Image
 from torch import Tensor
 
 from comfy.hazard.utils import common_upscale
-from comfy.util import _check_divisible_by_8, _image_to_greyscale_tensor, DeviceLocal, Device, _get_torch_device, \
-    _update_device
+from comfy.util import (
+    Device,
+    DeviceLocal,
+    _check_divisible_by_8,
+    _get_torch_device,
+    _image_to_greyscale_tensor,
+    _update_device,
+)
 
 
 class UpscaleMethod(Enum):

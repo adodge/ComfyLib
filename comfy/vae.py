@@ -3,8 +3,8 @@ import torch
 from PIL import Image
 from torch import Tensor
 
-from comfy.latent_image import LatentImage
 from comfy.hazard.sd import VAE
+from comfy.latent_image import LatentImage
 from comfy.util import (
     _check_divisible_by_64,
     _image_to_greyscale_tensor,

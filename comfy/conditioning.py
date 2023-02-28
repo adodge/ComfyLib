@@ -2,7 +2,13 @@ from typing import Dict, Iterable, List, Optional, Tuple
 
 from torch import Tensor
 
-from .util import _check_divisible_by_8, DeviceLocal, Device, _get_torch_device, _update_device
+from .util import (
+    Device,
+    DeviceLocal,
+    _check_divisible_by_8,
+    _get_torch_device,
+    _update_device,
+)
 
 
 class Conditioning(DeviceLocal):
@@ -14,10 +20,7 @@ class Conditioning(DeviceLocal):
 
     def to(self, device: Device):
         dev = _get_torch_device(device)
-        self._data = [
-            (d.to(dev), m)
-            for d, m in self._data
-        ]
+        self._data = [(d.to(dev), m) for d, m in self._data]
 
     def device(self) -> Device:
         out = None
