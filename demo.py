@@ -17,14 +17,21 @@ neg = clip.encode("")
 
 image0 = Image.open("input.png")
 latentA = vae.encode(image0)
+
 latentB = sd.sample(positive=pos, negative=neg, latent_image=latentA, seed=42, steps=20, cfg_scale=7,
                     sampler=comfy.stable_diffusion.Sampler.SAMPLE_EULER, scheduler=comfy.stable_diffusion.Scheduler.NORMAL, denoise_strength=0.75)
+
+
 image1 = vae.decode(latentB)
 image1.save("out1.png")
 
-latent0 = comfy.latent_image.LatentImage.empty(512, 512)
-latent1 = sd.sample(positive=pos, negative=neg, latent_image=latent0, seed=42, steps=20, cfg_scale=7,
-                    sampler=comfy.stable_diffusion.Sampler.SAMPLE_EULER, scheduler=comfy.stable_diffusion.Scheduler.NORMAL, denoise_strength=1.0)
-image = vae.decode(latent_image=latent1)
+latentC = latentB.upscale(768, 768, comfy.latent_image.UpscaleMethod.NEAREST, comfy.latent_image.CropMethod.DISABLED)
 
-image.save("out2.png")
+latentD = sd.sample(positive=pos, negative=neg, latent_image=latentC, seed=42, steps=20, cfg_scale=7,
+                    sampler=comfy.stable_diffusion.Sampler.SAMPLE_EULER, scheduler=comfy.stable_diffusion.Scheduler.NORMAL, denoise_strength=0.75)
+
+image2 = vae.decode(latentC)
+image2.save("out2.png")
+
+image3 = vae.decode(latentD)
+image3.save("out3.png")
