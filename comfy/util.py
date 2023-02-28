@@ -1,6 +1,9 @@
-from typing import Iterable, Tuple
+import abc
+from enum import Enum
+from typing import Iterable, Tuple, Optional
 
 import numpy as np
+import torch
 from PIL import Image
 from torch import Tensor
 
@@ -43,3 +46,45 @@ def _check_divisible_by_n(n: int, *vals: int) -> Iterable[int]:
         if v % n != 0:
             raise ValueError(f"Expected an integer divisible by {n}, but got {v}")
     return (v // n for v in vals)
+
+
+class Device(Enum):
+    CPU = "cpu"
+    CUDA = "cuda"
+    MIXED = "mixed"
+
+
+def _get_torch_device(device: Device) -> torch.device:
+    if device == Device.CPU:
+        return torch.device("cpu")
+    elif device == Device.CUDA:
+        return torch.device("cuda")
+    else:
+        raise ValueError(f"Invalid device to move to: {device}")
+
+
+def _update_device(device: Optional[Device], obj: Tensor) -> Device:
+    if obj.device.type == "cpu":
+        object_device = Device.CPU
+    elif obj.device.type == "cuda":
+        object_device = Device.CUDA
+    else:
+        raise RuntimeError(f"object has an unexpected device type: {obj.device}")
+    if device is None or device == object_device:
+        return object_device
+    else:
+        return Device.MIXED
+
+
+class DeviceLocal:#(abc.ABC):
+    """
+    A class for objects that can be moved from one device to another.
+    """
+    #@abc.abstractmethod
+    def to(self, device: Device):
+        raise NotImplementedError
+
+    #@abc.abstractmethod
+    @property
+    def device(self) -> Device:
+        raise NotImplementedError

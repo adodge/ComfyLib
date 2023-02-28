@@ -3,7 +3,7 @@ import torch
 from PIL import Image
 from torch import Tensor
 
-from comfy import LatentImage
+from comfy.latent_image import LatentImage
 from comfy.hazard.sd import VAE
 from comfy.util import (
     _check_divisible_by_64,
@@ -23,6 +23,7 @@ class VAEModel:
 
     def encode(self, image: Image) -> LatentImage:
         # VAEEncode
+        # XXX something's wrong here, I think
         img_t, _ = _image_to_rgb_tensor(image)
         img = self._model.encode(img_t)
         return LatentImage(img)

@@ -2,15 +2,28 @@ from typing import Dict, Iterable, List, Optional, Tuple
 
 from torch import Tensor
 
-from .util import _check_divisible_by_8
+from .util import _check_divisible_by_8, DeviceLocal, Device, _get_torch_device, _update_device
 
 
-class Conditioning:
+class Conditioning(DeviceLocal):
     def __init__(self, data: Optional[Tensor], meta: Optional[Dict] = None):
         meta = meta or {}
         self._data: List[Tuple[Tensor, Dict]] = []
         if data is not None:
             self._data.append((data, meta))
+
+    def to(self, device: Device):
+        dev = _get_torch_device(device)
+        self._data = [
+            (d.to(dev), m)
+            for d, m in self._data
+        ]
+
+    def device(self) -> Device:
+        out = None
+        for d, m in self._data:
+            out = _update_device(out, d)
+        return out or Device.CPU
 
     @classmethod
     def combine(cls, inputs: Iterable["Conditioning"]) -> "Conditioning":

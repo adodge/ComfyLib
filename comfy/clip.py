@@ -1,8 +1,7 @@
 from typing import Optional
 
-from comfy import Conditioning
+from comfy.conditioning import Conditioning
 from comfy.hazard.sd import CLIP, load_clip
-
 
 class CLIPModel:
     def __init__(self, model: CLIP):

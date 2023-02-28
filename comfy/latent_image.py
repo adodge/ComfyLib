@@ -6,7 +6,8 @@ from PIL import Image
 from torch import Tensor
 
 from comfy.hazard.utils import common_upscale
-from comfy.util import _check_divisible_by_8, _image_to_greyscale_tensor
+from comfy.util import _check_divisible_by_8, _image_to_greyscale_tensor, DeviceLocal, Device, _get_torch_device, \
+    _update_device
 
 
 class UpscaleMethod(Enum):
@@ -20,10 +21,23 @@ class CropMethod(Enum):
     CENTER = "center"
 
 
-class LatentImage:
+class LatentImage(DeviceLocal):
     def __init__(self, data: Tensor, mask: Optional[Tensor] = None):
         self._data = data
         self._noise_mask: Optional[Tensor] = mask
+
+    def to(self, device: Device):
+        dev = _get_torch_device(device)
+        self._data = self._data.to(dev)
+        if self._noise_mask is not None:
+            self._noise_mask = self._noise_mask.to(dev)
+
+    def device(self) -> Device:
+        out = None
+        out = _update_device(out, self._data)
+        if self._noise_mask is not None:
+            out = _update_device(out, self._noise_mask)
+        return out or Device.CPU
 
     def size(self) -> Tuple[int, int]:
         _, _, height, width = self._data.size()

@@ -5,7 +5,8 @@ from typing import Optional, Tuple
 
 from omegaconf import OmegaConf
 
-from comfy import Conditioning, LatentImage
+from comfy.conditioning import Conditioning
+from comfy.latent_image import LatentImage
 from comfy.clip import CLIPModel
 from comfy.hazard.nodes import common_ksampler
 from comfy.hazard.sd import ModelPatcher
