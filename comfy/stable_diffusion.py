@@ -9,7 +9,8 @@ from comfy.clip import CLIPModel
 from comfy.conditioning import Conditioning
 from comfy.hazard.nodes import common_ksampler
 from comfy.hazard.sd import ModelPatcher
-from comfy.hazard.sd import load_checkpoint as _load_checkpoint
+from comfy.native.io import load_checkpoint as _load_checkpoint
+from comfy.hazard.ldm.models.diffusion.ddpm import LatentDiffusion
 from comfy.latent_image import LatentImage
 from comfy.vae import VAEModel
 
@@ -58,10 +59,16 @@ class CheckpointConfig:
         file_like.seek(0)
         return file_like
 
+    def to_omegaconf(self):
+        return self.config
+
 
 class StableDiffusionModel:
-    def __init__(self, model: ModelPatcher):
+    def __init__(self, model: LatentDiffusion):
         self._model = model
+
+    def to_model_patcher(self) -> ModelPatcher:
+        return ModelPatcher(self._model)
 
     @classmethod
     def from_checkpoint(
@@ -69,10 +76,8 @@ class StableDiffusionModel:
     ) -> "StableDiffusionModel":
         # CheckpointLoader
         stable_diffusion, _, _ = _load_checkpoint(
-            config_path=config.to_file_like(),
+            config_path=config.to_omegaconf(),
             ckpt_path=checkpoint_filepath,
-            output_vae=False,
-            output_clip=False,
         )
         return cls(stable_diffusion)
 
@@ -93,7 +98,7 @@ class StableDiffusionModel:
         device = "cuda"
         img = common_ksampler(
             device=device,
-            model=self._model,
+            model=self.to_model_patcher(),
             seed=seed,
             steps=steps,
             cfg=cfg_scale,
@@ -135,7 +140,7 @@ class StableDiffusionModel:
 
         img = common_ksampler(
             device=device,
-            model=self._model,
+            model=self.to_model_patcher(),
             seed=seed,
             steps=steps,
             cfg=cfg_scale,
@@ -161,10 +166,8 @@ def load_checkpoint(
 ) -> Tuple[StableDiffusionModel, CLIPModel, VAEModel]:
     # CheckpointLoader
     stable_diffusion, clip, vae = _load_checkpoint(
-        config.to_file_like(),
+        config.to_omegaconf(),
         checkpoint_filepath,
-        output_vae=True,
-        output_clip=True,
         embedding_directory=embedding_directory,
     )
 
