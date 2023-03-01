@@ -4,52 +4,52 @@ All the talk about having a reliable interface below is aspirational.  The
 interface is in flux at the moment, and no guarantee of the master branch
 working are made, yet.  Soon.
 
+This was initially planned to be a fork of ComfyUI, with regular merges from
+upstream.  However, we are quickly realizing that's impractical, given the
+rapid development in the ComfyUI codebase.  So, this is a hard fork.  We will
+make a strong effort to keep parity, but we will also be going our own way here
+and the implementation will probably end up quite different.
+
 ----
 
 This is the [ComfyUI](https://github.com/comfyanonymous/ComfyUI), but without
 the UI.  It's stripped down and packaged as a library, for use in other projects.
 
 ComfyUI is actively maintained (as of writing), and has implementations of a
-lot of the cool cutting-edge Stable Diffusion stuff.  The implementation is as
-unmodified as possible, to hopefully make it easier to merge in upstream
-improvements.
+lot of the cool cutting-edge Stable Diffusion stuff.
 
 In order to provide a consistent API, an interface layer has
 been added.  Directly importing names not in the API should be considered
-dangerous, as the ComfyUI maintainers might change how things are arranged
-whenever they want, and those changes will be merged into this fork as soon as
-possible, possibly without changing the major version of the library.
+dangerous.  A best effort will be made to keep this library apace with the
+implementation in ComfyUI (though this will get harder over time as the
+implemntations diverge) so the backend implementation might change drastically
+between minor versions.
 
 The interface layer will be consistent within a major version of the library,
 so that's what you should rely on.
 
 # Design goals
 
-0. The implementation from ComfyUI should be changed as little as possible, and
-in very predictable ways if so.  (Changing import paths, for example.)  This is
-to make it easier to merge in changes from upstream, so the library can keep
-apace with the work being done on the ComfyUI project.
 1. The API should expose the same breadth of functionality available by using
-the node editor in ComfyUI.  So, at the very least, we're probably targeting
-one function/method per node.
+the node editor in ComfyUI.
 2. Opaque types should be preferred.  Rather than pass tensors around, we're
 going to wrap them in objects that hide the implementation.  This gives us
-maximum flexibility to keep the API the same in case ComfyUI change things
-drastically.
-3. Explicit rather than implicit behavior.  ComfyUI does a lot of clever things
-to provide a good user experience, like automatically rounding down sizes, or
-managing VRAM.  As much as possible, we're going to try to make these explicit
-options for the library-user.
+maximum flexibility to keep the API the same, while also incorporating new
+developments.
+3. Explicit rather than implicit behavior.  As a library, we shouldn't make
+assumptions about how the user wants to, for example, sanitize inputs or manage
+VRAM.
 4. The API should be should be typed as strictly as possible.  Enums should be
 used instead of strings, when applicable, etc.
-5. The interface layer should have unit tests
+5. The interface layer should have complete test coverage, and the tests should
+double as example code for using the library.
 
 # Installation
 
 For now you can install from github:
 
 ```
-pip3 install git+https://github.com/adodge/Comfy-Lib
+pip3 install git+https://github.com/adodge/ComfyLib
 ```
 
 # Example
@@ -57,7 +57,6 @@ pip3 install git+https://github.com/adodge/Comfy-Lib
 ```python3
 import comfy.stable_diffusion
 import comfy.latent_image
-import comfy
 
 config = comfy.stable_diffusion.CheckpointConfig.from_built_in(comfy.stable_diffusion.BuiltInCheckpointConfigName.V1)
 
@@ -73,16 +72,16 @@ pos = clip.encode("an astronaut")
 neg = clip.encode("")
 
 # Run the sampler
-img0 = comfy.latent_image.LatentImage.empty(512, 512)
-img1 = sd.sample(positive=pos, negative=neg, latent_image=img0, seed=42, steps=20, cfg_strength=7,
+latent0 = comfy.latent_image.LatentImage.empty(512, 512)
+latent1 = sd.sample(positive=pos, negative=neg, latent_image=latent0, seed=42, steps=20, cfg_strength=7,
                  sampler=comfy.stable_diffusion.Sampler.SAMPLE_EULER, scheduler=comfy.stable_diffusion.Scheduler.NORMAL,
                  denoise_strength=1.0)
 
 # Run the VAE to get a Pillow Image
-img2 = vae.decode(latent_image=img1)
+image = vae.decode(latent_image=latent1)
 
 # Save that to a file
-img2.save("out.png")
+image.save("out.png")
 ```
 
 # API

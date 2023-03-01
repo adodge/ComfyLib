@@ -3,7 +3,7 @@ import os
 from enum import Enum
 from typing import Optional, Tuple
 
-from omegaconf import OmegaConf
+from omegaconf import OmegaConf, DictConfig
 
 from comfy.clip import CLIPModel
 from comfy.conditioning import Conditioning
@@ -59,7 +59,7 @@ class CheckpointConfig:
         file_like.seek(0)
         return file_like
 
-    def to_omegaconf(self):
+    def to_omegaconf(self) -> DictConfig:
         return self.config
 
 
@@ -76,8 +76,8 @@ class StableDiffusionModel:
     ) -> "StableDiffusionModel":
         # CheckpointLoader
         stable_diffusion, _, _ = _load_checkpoint(
-            config_path=config.to_omegaconf(),
-            ckpt_path=checkpoint_filepath,
+            config=config.to_omegaconf(),
+            filepath=checkpoint_filepath,
         )
         return cls(stable_diffusion)
 
@@ -166,8 +166,8 @@ def load_checkpoint(
 ) -> Tuple[StableDiffusionModel, CLIPModel, VAEModel]:
     # CheckpointLoader
     stable_diffusion, clip, vae = _load_checkpoint(
-        config.to_omegaconf(),
-        checkpoint_filepath,
+        config=config.to_omegaconf(),
+        filepath=checkpoint_filepath,
         embedding_directory=embedding_directory,
     )
 

@@ -1,9 +1,6 @@
-import abc
-from enum import Enum
-from typing import Iterable, Optional, Tuple
+from typing import Iterable, Tuple
 
 import numpy as np
-import torch
 from PIL import Image
 from torch import Tensor
 

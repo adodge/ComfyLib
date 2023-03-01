@@ -1,6 +1,9 @@
 import torch
 import safetensors.torch
 from typing import Dict, Tuple, Optional
+
+from omegaconf import DictConfig
+
 from ..hazard.sd import VAE, CLIP
 from ..hazard.sd import load_model_from_config
 from ..hazard.ldm.models.diffusion.ddpm import LatentDiffusion
@@ -21,7 +24,7 @@ def load_torch_file(filepath: str) -> Dict:
     return sd
 
 
-def load_checkpoint(config: Dict, filepath: str, embedding_directory: Optional[str]=None) -> Tuple[LatentDiffusion, CLIP, VAE]:
+def load_checkpoint(config: DictConfig, filepath: str, embedding_directory: Optional[str]=None) -> Tuple[LatentDiffusion, CLIP, VAE]:
     model_config_params = config['model']['params']
     clip_config = model_config_params['cond_stage_config']
     scale_factor = model_config_params['scale_factor']
