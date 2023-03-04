@@ -1,6 +1,5 @@
 from PIL import Image
 
-import comfy
 import comfy.latent_image
 import comfy.stable_diffusion
 

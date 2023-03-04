@@ -26,8 +26,8 @@ class SD1ClipModel(torch.nn.Module, ClipTokenWeightEncoder):
         "pooled",
         "hidden"
     ]
-    def __init__(self, version="openai/clip-vit-large-patch14", device="cpu", max_length=77,
-                 freeze=True, layer="last", layer_idx=None, textmodel_json_config=None, textmodel_path=None):  # clip-vit-base-patch32
+    def __init__(self, max_length=77, freeze=True, layer="last", layer_idx=None,
+                 textmodel_json_config=None, textmodel_path=None):  # clip-vit-base-patch32
         super().__init__()
         assert layer in self.LAYERS
         if textmodel_path is not None:
@@ -39,7 +39,7 @@ class SD1ClipModel(torch.nn.Module, ClipTokenWeightEncoder):
             config = CLIPTextConfig.from_json_file(textmodel_json_config)
             self.transformer = CLIPTextModel(config)
 
-        self.device = device
+        self.device = torch.device("cpu")
         self.max_length = max_length
         if freeze:
             self.freeze()
@@ -53,7 +53,6 @@ class SD1ClipModel(torch.nn.Module, ClipTokenWeightEncoder):
 
     def freeze(self):
         self.transformer = self.transformer.eval()
-        #self.train = disabled_train
         for param in self.parameters():
             param.requires_grad = False
 

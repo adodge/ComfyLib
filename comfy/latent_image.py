@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
 import torch
 from PIL import Image
@@ -24,20 +24,36 @@ class CropMethod(Enum):
 
 
 class LatentImage:
-    def __init__(self, data: Tensor, mask: Optional[Tensor] = None):
+    def __init__(self, data: Tensor, mask: Optional[Tensor] = None, device: Union[str, torch.device] = "cpu"):
         self._data = data
         self._noise_mask: Optional[Tensor] = mask
+        self.device: Optional[torch.device] = None
+        self.to(device)
+
+    def to(self, device: Union[str, torch.device]) -> "LatentImage":
+        """
+        Modifies the object in-place.
+        """
+        torch_device = torch.device(device)
+        if torch_device == self.device:
+            return self
+
+        self._data = self._data.to(torch_device)
+        if self._noise_mask is not None:
+            self._noise_mask = self._noise_mask.to(torch_device)
+        self.device = torch_device
+        return self
 
     def size(self) -> Tuple[int, int]:
         _, _, height, width = self._data.size()
         return width, height
 
     @classmethod
-    def empty(cls, width: int, height: int):
+    def empty(cls, width: int, height: int, device: Union[str, torch.device] = "cpu"):
         # EmptyLatentImage
         width, height = _check_divisible_by_8(width, height)
         img = torch.zeros([1, 4, height, width])
-        return cls(img)
+        return cls(img, device=device)
 
     @classmethod
     def combine(

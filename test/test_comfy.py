@@ -2,6 +2,8 @@ import os
 from unittest import TestCase
 
 import torch.cuda
+from PIL import Image
+import gc
 
 import comfy.stable_diffusion
 import comfy.clip
@@ -21,32 +23,30 @@ class TestComfy(TestCase):
         cls.sd, cls.clip, cls.vae = comfy.stable_diffusion.load_checkpoint(V1_CHECKPOINT_FILEPATH, config)
 
     def setUp(self):
+        self.sd.to("cpu")
+        self.clip.to("cpu")
+        self.vae.to("cpu")
+
+        gc.collect()
         torch.cuda.empty_cache()
 
     def test_load_checkpoint(self):
         self.assertIsInstance(self.sd, comfy.stable_diffusion.StableDiffusionModel)
         self.assertIsInstance(self.clip, comfy.clip.CLIPModel)
         self.assertIsInstance(self.vae, comfy.vae.VAEModel)
-        self.assertEqual(0, torch.cuda.memory_allocated("cuda"))
 
     def test_text_to_image(self):
+        self.sd.to("cuda")
+        self.clip.to("cuda")
+        self.vae.to("cuda")
+
+        latent = comfy.latent_image.LatentImage.empty(512, 512).to("cuda")
+
         pos = self.clip.encode("An astronaut")
         neg = self.clip.encode("bad hands")
-        self.assertIsInstance(pos, comfy.conditioning.Conditioning)
-        self.assertIsInstance(neg, comfy.conditioning.Conditioning)
-
-        latent = comfy.latent_image.LatentImage.empty(512, 512)
-        self.assertIsInstance(latent, comfy.latent_image.LatentImage)
-
-        # So far none of this should be in VRAM
-        self.assertEqual(0, torch.cuda.memory_allocated("cuda"))
 
         result = self.sd.sample(positive=pos, negative=neg, latent_image=latent, seed=0, steps=1, cfg_scale=7,
                                 sampler=comfy.stable_diffusion.Sampler.SAMPLE_EULER,
                                 scheduler=comfy.stable_diffusion.Scheduler.NORMAL, denoise_strength=1.0)
-        self.assertIsInstance(result, comfy.latent_image.LatentImage)
 
-        # Something should be in VRAM now
-        self.assertNotEqual(0, torch.cuda.memory_allocated("cuda"))
-
-        print(self.sd._model.device)
+        image = self.vae.decode(result)

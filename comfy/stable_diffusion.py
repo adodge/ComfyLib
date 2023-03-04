@@ -1,7 +1,8 @@
 import io
 import os
 from enum import Enum
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
+import torch
 
 from omegaconf import OmegaConf, DictConfig
 
@@ -13,6 +14,7 @@ from comfy.native.io import load_checkpoint as _load_checkpoint
 from comfy.hazard.ldm.models.diffusion.ddpm import LatentDiffusion
 from comfy.latent_image import LatentImage
 from comfy.vae import VAEModel
+from util import SDType
 
 
 class Sampler(Enum):
@@ -63,12 +65,28 @@ class CheckpointConfig:
         return self.config
 
 
-class StableDiffusionModel:
-    def __init__(self, model: LatentDiffusion):
-        self._model = model
+class StableDiffusionModel(SDType):
+    def __init__(self, model: LatentDiffusion, device: Union[str, torch.device] = "cpu"):
+        self._model: LatentDiffusion = model
+        self.to(device)
 
-    def to_model_patcher(self) -> ModelPatcher:
-        return ModelPatcher(self._model)
+    # def clone(self) -> "StableDiffusionModel":
+    #     return StableDiffusionModel(
+    #         model=self._model.clone(),
+    #         device=self.device,
+    #     )
+
+    def to(self, device: Union[str, torch.device]) -> "StableDiffusionModel":
+        """
+        Modifies this object in-place.
+        """
+        torch_device = torch.device(device)
+        if torch_device == self.device:
+            return self
+
+        self._model.to(torch_device)
+        self.device = torch_device
+        return self
 
     @classmethod
     def from_checkpoint(
@@ -81,6 +99,7 @@ class StableDiffusionModel:
         )
         return cls(stable_diffusion)
 
+    @SDType.requires_cuda
     def sample(
         self,
         positive: Conditioning,
@@ -95,10 +114,9 @@ class StableDiffusionModel:
     ) -> LatentImage:
         # KSampler
 
-        device = "cuda"
         img = common_ksampler(
-            device=device,
-            model=self.to_model_patcher(),
+            device=self.device,
+            model=self._model,
             seed=seed,
             steps=steps,
             cfg=cfg_scale,
@@ -110,8 +128,9 @@ class StableDiffusionModel:
             denoise=denoise_strength,
         )
 
-        return LatentImage(img[0]["samples"])
+        return LatentImage(img[0]["samples"], device=self.device)
 
+    @SDType.requires_cuda
     def advanced_sample(
         self,
         positive: Conditioning,
@@ -129,7 +148,6 @@ class StableDiffusionModel:
         return_with_leftover_noise: bool,
     ) -> LatentImage:
         # KSamplerAdvanced
-        device = "cuda"
 
         force_full_denoise = True
         if return_with_leftover_noise == "enable":
@@ -139,8 +157,8 @@ class StableDiffusionModel:
             disable_noise = True
 
         img = common_ksampler(
-            device=device,
-            model=self.to_model_patcher(),
+            device=self.device,
+            model=self._model,
             seed=seed,
             steps=steps,
             cfg=cfg_scale,
@@ -156,7 +174,7 @@ class StableDiffusionModel:
             last_step=end_at_step,
         )
 
-        return LatentImage(img[0]["samples"])
+        return LatentImage(img[0]["samples"], device=self.device)
 
 
 def load_checkpoint(

@@ -1,6 +1,8 @@
-from typing import Iterable, Tuple
+import functools
+from typing import Iterable, Tuple, Optional
 
 import numpy as np
+import torch
 from PIL import Image
 from torch import Tensor
 
@@ -43,3 +45,17 @@ def _check_divisible_by_n(n: int, *vals: int) -> Iterable[int]:
         if v % n != 0:
             raise ValueError(f"Expected an integer divisible by {n}, but got {v}")
     return (v // n for v in vals)
+
+class SDType:
+    device: Optional[torch.device] = None
+
+    @classmethod
+    def requires_cuda(cls, func):
+        @functools.wraps(func)
+        def f(self, *args, **kwargs):
+            if self.device is None:
+                raise RuntimeError
+            if not self.device.type == "cuda":
+                raise RuntimeError(f"{cls.__name__} must be moved to CUDA before calling {func.__name__}")
+            return func(self, *args, **kwargs)
+        return f

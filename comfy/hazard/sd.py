@@ -287,16 +287,16 @@ class CLIP:
     def encode(self, text):
         tokens = self.tokenizer.tokenize_with_weights(text)
         try:
-            self.patcher.patch_model()
+            #self.patcher.patch_model()
             cond = self.cond_stage_model.encode_token_weights(tokens)
-            self.patcher.unpatch_model()
+            #self.patcher.unpatch_model()
         except Exception as e:
-            self.patcher.unpatch_model()
+            #self.patcher.unpatch_model()
             raise e
         return cond
 
 class VAE:
-    def __init__(self, ckpt_path=None, scale_factor=0.18215, device="cuda", config=None):
+    def __init__(self, ckpt_path=None, scale_factor=0.18215, config=None):
         if config is None:
             #default SD1.x/SD2.x VAE parameters
             ddconfig = {'double_z': True, 'z_channels': 4, 'resolution': 256, 'in_channels': 3, 'out_ch': 3, 'ch': 128, 'ch_mult': [1, 2, 4, 4], 'num_res_blocks': 2, 'attn_resolutions': [], 'dropout': 0.0}
@@ -305,33 +305,27 @@ class VAE:
             self.first_stage_model = AutoencoderKL(**(config['params']), ckpt_path=ckpt_path)
         self.first_stage_model = self.first_stage_model.eval()
         self.scale_factor = scale_factor
-        self.device = device
 
     def decode(self, samples):
-        model_management.unload_model()
-        self.first_stage_model = self.first_stage_model.to(self.device)
-        samples = samples.to(self.device)
         pixel_samples = self.first_stage_model.decode(1. / self.scale_factor * samples)
         pixel_samples = torch.clamp((pixel_samples + 1.0) / 2.0, min=0.0, max=1.0)
-        self.first_stage_model = self.first_stage_model.cpu()
-        pixel_samples = pixel_samples.cpu().movedim(1,-1)
+        pixel_samples = pixel_samples.movedim(1,-1)
         return pixel_samples
 
-    def decode_tiled(self, samples):
+    def decode_tiled(self, samples, device):
         tile_x = tile_y = 64
         overlap = 8
         model_management.unload_model()
-        output = torch.empty((samples.shape[0], 3, samples.shape[2] * 8, samples.shape[3] * 8), device="cpu")
-        self.first_stage_model = self.first_stage_model.to(self.device)
+        output = torch.empty((samples.shape[0], 3, samples.shape[2] * 8, samples.shape[3] * 8), device=device)
         for b in range(samples.shape[0]):
             s = samples[b:b+1]
-            out = torch.zeros((s.shape[0], 3, s.shape[2] * 8, s.shape[3] * 8), device="cpu")
-            out_div = torch.zeros((s.shape[0], 3, s.shape[2] * 8, s.shape[3] * 8), device="cpu")
+            out = torch.zeros((s.shape[0], 3, s.shape[2] * 8, s.shape[3] * 8), device=device)
+            out_div = torch.zeros((s.shape[0], 3, s.shape[2] * 8, s.shape[3] * 8), device=device)
             for y in range(0, s.shape[2], tile_y - overlap):
                 for x in range(0, s.shape[3], tile_x - overlap):
                     s_in = s[:,:,y:y+tile_y,x:x+tile_x]
 
-                    pixel_samples = self.first_stage_model.decode(1. / self.scale_factor * s_in.to(self.device))
+                    pixel_samples = self.first_stage_model.decode(1. / self.scale_factor * s_in)
                     pixel_samples = torch.clamp((pixel_samples + 1.0) / 2.0, min=0.0, max=1.0)
                     ps = pixel_samples.cpu()
                     mask = torch.ones_like(ps)
@@ -345,16 +339,11 @@ class VAE:
                     out_div[:,:,y*8:(y+tile_y)*8,x*8:(x+tile_x)*8] += mask
 
             output[b:b+1] = out/out_div
-        self.first_stage_model = self.first_stage_model.cpu()
         return output.movedim(1,-1)
 
     def encode(self, pixel_samples):
-        model_management.unload_model()
-        self.first_stage_model = self.first_stage_model.to(self.device)
-        pixel_samples = pixel_samples.movedim(-1,1).to(self.device)
+        pixel_samples = pixel_samples.movedim(-1,1)
         samples = self.first_stage_model.encode(2. * pixel_samples - 1.).sample() * self.scale_factor
-        self.first_stage_model = self.first_stage_model.cpu()
-        samples = samples.cpu()
         return samples
 
 
