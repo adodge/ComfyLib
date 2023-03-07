@@ -2,20 +2,25 @@ from typing import Dict, Iterable, List, Optional, Tuple, Union
 
 import torch
 from torch import Tensor
-from .util import _check_divisible_by_8
+
+from comfy.util import SDType, _check_divisible_by_8
 
 # Metadata keys: TODO class
 # area, strength, min_sigma, max_sigma
 
 
-class Conditioning:
-    def __init__(self, data: Optional[Tensor], meta: Optional[Dict] = None, device: Union[str, torch.device] = "cpu"):
+class Conditioning(SDType):
+    def __init__(
+        self,
+        data: Optional[Tensor],
+        meta: Optional[Dict] = None,
+        device: Union[str, torch.device] = "cpu",
+    ):
         meta = meta or {}
         self._data: List[Tuple[Tensor, Dict]] = []
         if data is not None:
             self._data.append((data, meta))
 
-        self.device: Optional[torch.device] = None
         self.to(device)
 
     def to(self, device: Union[str, torch.device]) -> "Conditioning":
@@ -26,7 +31,7 @@ class Conditioning:
         if torch_device == self.device:
             return self
 
-        self._data = [(d.to(torch_device), m) for d,m in self._data]
+        self._data = [(d.to(torch_device), m) for d, m in self._data]
         self.device = torch_device
         return self
 

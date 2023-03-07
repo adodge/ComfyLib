@@ -1,8 +1,7 @@
 import torch
 
 import comfy.hazard.samplers
-from comfy.hazard import model_management
-from hazard.ldm.models.diffusion.ddpm import LatentDiffusion
+from comfy.hazard.ldm.models.diffusion.ddpm import LatentDiffusion
 
 
 def common_ksampler(device, model: LatentDiffusion, seed: int, steps: int, cfg: float, sampler_name: str, scheduler: str,

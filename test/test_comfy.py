@@ -13,6 +13,7 @@ import comfy.clip
 import comfy.vae
 import comfy.conditioning
 import comfy.latent_image
+from comfy.util import ModelLoadError
 
 V1_CHECKPOINT_FILEPATH = os.environ.get("V1_CHECKPOINT_FILEPATH")
 V1_SAFETENSORS_FILEPATH = os.environ.get("V1_SAFETENSORS_FILEPATH")
@@ -133,7 +134,7 @@ class TestSDV1(TestCase):
         name = comfy.stable_diffusion.BuiltInCheckpointConfigName.V2
         config = comfy.stable_diffusion.CheckpointConfig.from_built_in(name)
 
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(ModelLoadError):
             comfy.stable_diffusion.load_checkpoint(V1_CHECKPOINT_FILEPATH, config)
 
 
@@ -191,5 +192,5 @@ class TestSDV2(TestCase):
         name = comfy.stable_diffusion.BuiltInCheckpointConfigName.V1
         config = comfy.stable_diffusion.CheckpointConfig.from_built_in(name)
 
-        with self.assertRaises(RuntimeError):
+        with self.assertRaises(ModelLoadError):
             comfy.stable_diffusion.load_checkpoint(V2_SAFETENSORS_FILEPATH, config)

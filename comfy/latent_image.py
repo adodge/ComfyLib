@@ -7,9 +7,7 @@ from PIL import Image
 from torch import Tensor
 
 from comfy.hazard.utils import common_upscale
-from comfy.util import (
-    _check_divisible_by_8,
-)
+from comfy.util import SDType, _check_divisible_by_8
 
 
 class UpscaleMethod(Enum):
@@ -23,10 +21,9 @@ class CropMethod(Enum):
     CENTER = "center"
 
 
-class RGBImage:
+class RGBImage(SDType):
     def __init__(self, data: Tensor, device: Union[str, torch.device] = "cpu"):
         self._data = data
-        self.device: Optional[torch.device] = None
         self.to(device)
 
     def to(self, device: Union[str, torch.device]) -> "RGBImage":
@@ -51,7 +48,9 @@ class RGBImage:
         return Image.fromarray(arr)
 
     @classmethod
-    def from_image(cls, image: Image, device: Union[str, torch.device] = "cpu") -> "RGBImage":
+    def from_image(
+        cls, image: Image, device: Union[str, torch.device] = "cpu"
+    ) -> "RGBImage":
         img_a = np.array(image)
         assert img_a.ndim == 3
         height, width, channels = img_a.shape
@@ -63,10 +62,9 @@ class RGBImage:
         return self._data
 
 
-class GreyscaleImage:
+class GreyscaleImage(SDType):
     def __init__(self, data: Tensor, device: Union[str, torch.device] = "cpu"):
         self._data = data
-        self.device: Optional[torch.device] = None
         self.to(device)
 
     def to(self, device: Union[str, torch.device]) -> "GreyscaleImage":
@@ -86,7 +84,9 @@ class GreyscaleImage:
         return width, height
 
     @classmethod
-    def from_image(cls, image: Image, device: Union[str, torch.device] = "cpu") -> "GreyscaleImage":
+    def from_image(
+        cls, image: Image, device: Union[str, torch.device] = "cpu"
+    ) -> "GreyscaleImage":
         img_a = np.array(image)
         if img_a.ndim == 3:
             assert img_a.shape[2] == 1
@@ -99,11 +99,15 @@ class GreyscaleImage:
         return self._data
 
 
-class LatentImage:
-    def __init__(self, data: Tensor, mask: Optional[Tensor] = None, device: Union[str, torch.device] = "cpu"):
+class LatentImage(SDType):
+    def __init__(
+        self,
+        data: Tensor,
+        mask: Optional[Tensor] = None,
+        device: Union[str, torch.device] = "cpu",
+    ):
         self._data = data
         self._noise_mask: Optional[Tensor] = mask
-        self.device: Optional[torch.device] = None
         self.to(device)
 
     def to(self, device: Union[str, torch.device]) -> "LatentImage":

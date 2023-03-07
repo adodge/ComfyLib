@@ -2,18 +2,18 @@ import io
 import os
 from enum import Enum
 from typing import Optional, Tuple, Union
-import torch
 
-from omegaconf import OmegaConf, DictConfig
+import torch
+from omegaconf import DictConfig, OmegaConf
 
 from comfy.clip import CLIPModel
 from comfy.conditioning import Conditioning
-from comfy.hazard.nodes import common_ksampler
-from comfy.native.io import load_checkpoint as _load_checkpoint
 from comfy.hazard.ldm.models.diffusion.ddpm import LatentDiffusion
+from comfy.hazard.nodes import common_ksampler
 from comfy.latent_image import LatentImage
+from comfy.native.io import load_checkpoint as _load_checkpoint
+from comfy.util import ModelLoadError, SDType
 from comfy.vae import VAEModel
-from util import SDType
 
 
 class Sampler(Enum):
@@ -65,15 +65,11 @@ class CheckpointConfig:
 
 
 class StableDiffusionModel(SDType):
-    def __init__(self, model: LatentDiffusion, device: Union[str, torch.device] = "cpu"):
+    def __init__(
+        self, model: LatentDiffusion, device: Union[str, torch.device] = "cpu"
+    ):
         self._model: LatentDiffusion = model
         self.to(device)
-
-    # def clone(self) -> "StableDiffusionModel":
-    #     return StableDiffusionModel(
-    #         model=self._model.clone(),
-    #         device=self.device,
-    #     )
 
     def to(self, device: Union[str, torch.device]) -> "StableDiffusionModel":
         """
@@ -89,14 +85,17 @@ class StableDiffusionModel(SDType):
 
     @classmethod
     def from_checkpoint(
-        cls, checkpoint_filepath: str, config: CheckpointConfig
+        cls,
+        checkpoint_filepath: str,
+        config: CheckpointConfig,
+        device: Union[str, torch.device] = "cpu",
     ) -> "StableDiffusionModel":
         # CheckpointLoader
         stable_diffusion, _, _ = _load_checkpoint(
             config=config.to_omegaconf(),
             filepath=checkpoint_filepath,
         )
-        return cls(stable_diffusion)
+        return cls(stable_diffusion, device=device)
 
     @SDType.requires_cuda
     def sample(
@@ -180,12 +179,20 @@ def load_checkpoint(
     checkpoint_filepath: str,
     config: CheckpointConfig,
     embedding_directory: Optional[str] = None,
+    device: Union[str, torch.device] = "cpu",
 ) -> Tuple[StableDiffusionModel, CLIPModel, VAEModel]:
     # CheckpointLoader
-    stable_diffusion, clip, vae = _load_checkpoint(
-        config=config.to_omegaconf(),
-        filepath=checkpoint_filepath,
-        embedding_directory=embedding_directory,
-    )
+    try:
+        stable_diffusion, clip, vae = _load_checkpoint(
+            config=config.to_omegaconf(),
+            filepath=checkpoint_filepath,
+            embedding_directory=embedding_directory,
+        )
+    except RuntimeError as e:
+        raise ModelLoadError("Failed to load checkpoint.") from e
 
-    return StableDiffusionModel(stable_diffusion), CLIPModel(clip), VAEModel(vae)
+    return (
+        StableDiffusionModel(stable_diffusion, device=device),
+        CLIPModel(clip, device=device),
+        VAEModel(vae, device=device),
+    )

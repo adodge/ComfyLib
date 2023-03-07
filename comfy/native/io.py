@@ -1,12 +1,11 @@
-import torch
-import safetensors.torch
-from typing import Dict, Tuple, Optional
+from typing import Dict, Optional, Tuple
 
+import safetensors.torch
+import torch
 from omegaconf import DictConfig
 
-from ..hazard.sd import VAE, CLIP
-from ..hazard.sd import load_model_from_config
-from ..hazard.ldm.models.diffusion.ddpm import LatentDiffusion
+from comfy.hazard.ldm.models.diffusion.ddpm import LatentDiffusion
+from comfy.hazard.sd import CLIP, VAE, load_model_from_config
 
 
 def load_torch_file(filepath: str) -> Dict:
@@ -24,11 +23,13 @@ def load_torch_file(filepath: str) -> Dict:
     return sd
 
 
-def load_checkpoint(config: DictConfig, filepath: str, embedding_directory: Optional[str]=None) -> Tuple[LatentDiffusion, CLIP, VAE]:
-    model_config_params = config['model']['params']
-    clip_config = model_config_params['cond_stage_config']
-    scale_factor = model_config_params['scale_factor']
-    vae_config = model_config_params['first_stage_config']
+def load_checkpoint(
+    config: DictConfig, filepath: str, embedding_directory: Optional[str] = None
+) -> Tuple[LatentDiffusion, CLIP, VAE]:
+    model_config_params = config["model"]["params"]
+    clip_config = model_config_params["cond_stage_config"]
+    scale_factor = model_config_params["scale_factor"]
+    vae_config = model_config_params["first_stage_config"]
 
     class WeightsLoader(torch.nn.Module):
         pass
@@ -41,5 +42,7 @@ def load_checkpoint(config: DictConfig, filepath: str, embedding_directory: Opti
     clip = CLIP(config=clip_config, embedding_directory=embedding_directory)
     w.cond_stage_model = clip.cond_stage_model
 
-    model = load_model_from_config(config, filepath, verbose=False, load_state_dict_to=load_state_dict_to)
+    model = load_model_from_config(
+        config, filepath, verbose=False, load_state_dict_to=load_state_dict_to
+    )
     return model, clip, vae

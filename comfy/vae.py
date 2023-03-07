@@ -4,10 +4,8 @@ import torch
 from torch import Tensor
 
 from comfy.hazard.sd import VAE
-from comfy.latent_image import LatentImage, RGBImage, GreyscaleImage
-from comfy.util import (
-    _check_divisible_by_64, SDType,
-)
+from comfy.latent_image import GreyscaleImage, LatentImage, RGBImage
+from comfy.util import SDType, _check_divisible_by_64
 
 
 class VAEModel(SDType):
@@ -29,9 +27,11 @@ class VAEModel(SDType):
         return self
 
     @classmethod
-    def from_model(cls, model_filepath: str) -> "VAEModel":
+    def from_model(
+        cls, model_filepath: str, device: Union[str, torch.device] = "cpu"
+    ) -> "VAEModel":
         # VAELoader
-        return VAEModel(VAE(ckpt_path=model_filepath))
+        return VAEModel(VAE(ckpt_path=model_filepath), device=device)
 
     @SDType.requires_cuda
     def encode(self, image: RGBImage) -> LatentImage:

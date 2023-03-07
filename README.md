@@ -36,13 +36,14 @@ the node editor in ComfyUI.
 going to wrap them in objects that hide the implementation.  This gives us
 maximum flexibility to keep the API the same, while also incorporating new
 developments.
-3. Explicit rather than implicit behavior.  As a library, we shouldn't make
-assumptions about how the user wants to, for example, sanitize inputs or manage
-VRAM.
+3. Explicit behavior should be prferred over implicit behavior.  As a library,
+we shouldn't make assumptions about how the user wants to, for example,
+sanitize inputs or manage VRAM.  At the cost of requiring a bit more work to
+use, we should raise exceptions when we get bad input, offer an interface for
+moving things to and from VRAM, etc.
 4. The API should be should be typed as strictly as possible.  Enums should be
 used instead of strings, when applicable, etc.
-5. The interface layer should have complete test coverage, and the tests should
-double as example code for using the library.
+5. The interface layer should have complete test coverage.
 
 # Installation
 
@@ -86,4 +87,15 @@ image.save("out.png")
 
 # API
 
+## Models
 
+### StableDiffusionModel
+### CLIPModel
+### VAEModel
+
+## Data
+
+### RGBImage
+### GreyscaleImage
+### LatentImage
+### Conditioning
