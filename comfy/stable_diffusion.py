@@ -9,7 +9,6 @@ from omegaconf import OmegaConf, DictConfig
 from comfy.clip import CLIPModel
 from comfy.conditioning import Conditioning
 from comfy.hazard.nodes import common_ksampler
-from comfy.hazard.sd import ModelPatcher
 from comfy.native.io import load_checkpoint as _load_checkpoint
 from comfy.hazard.ldm.models.diffusion.ddpm import LatentDiffusion
 from comfy.latent_image import LatentImage

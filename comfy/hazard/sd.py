@@ -315,7 +315,6 @@ class VAE:
     def decode_tiled(self, samples, device):
         tile_x = tile_y = 64
         overlap = 8
-        model_management.unload_model()
         output = torch.empty((samples.shape[0], 3, samples.shape[2] * 8, samples.shape[3] * 8), device=device)
         for b in range(samples.shape[0]):
             s = samples[b:b+1]

@@ -1,6 +1,7 @@
 from enum import Enum
 from typing import Optional, Tuple, Union
 
+import numpy as np
 import torch
 from PIL import Image
 from torch import Tensor
@@ -8,7 +9,6 @@ from torch import Tensor
 from comfy.hazard.utils import common_upscale
 from comfy.util import (
     _check_divisible_by_8,
-    _image_to_greyscale_tensor,
 )
 
 
@@ -21,6 +21,82 @@ class UpscaleMethod(Enum):
 class CropMethod(Enum):
     DISABLED = "disabled"
     CENTER = "center"
+
+
+class RGBImage:
+    def __init__(self, data: Tensor, device: Union[str, torch.device] = "cpu"):
+        self._data = data
+        self.device: Optional[torch.device] = None
+        self.to(device)
+
+    def to(self, device: Union[str, torch.device]) -> "RGBImage":
+        """
+        Modifies the object in-place.
+        """
+        torch_device = torch.device(device)
+        if torch_device == self.device:
+            return self
+
+        self._data = self._data.to(torch_device)
+        self.device = torch_device
+        return self
+
+    def size(self) -> Tuple[int, int]:
+        _, _, height, width = self._data.size()
+        return width, height
+
+    def to_image(self) -> Image:
+        arr = self._data.detach().cpu().numpy().reshape(self._data.shape[1:])
+        arr = (np.clip(arr, 0, 1) * 255).round().astype("uint8")
+        return Image.fromarray(arr)
+
+    @classmethod
+    def from_image(cls, image: Image, device: Union[str, torch.device] = "cpu") -> "RGBImage":
+        img_a = np.array(image)
+        assert img_a.ndim == 3
+        height, width, channels = img_a.shape
+        assert channels == 3
+        img_t = Tensor(img_a.reshape((1, height, width, 3)))
+        return cls(img_t, device=device)
+
+    def to_tensor(self) -> Tensor:
+        return self._data
+
+
+class GreyscaleImage:
+    def __init__(self, data: Tensor, device: Union[str, torch.device] = "cpu"):
+        self._data = data
+        self.device: Optional[torch.device] = None
+        self.to(device)
+
+    def to(self, device: Union[str, torch.device]) -> "GreyscaleImage":
+        """
+        Modifies the object in-place.
+        """
+        torch_device = torch.device(device)
+        if torch_device == self.device:
+            return self
+
+        self._data = self._data.to(torch_device)
+        self.device = torch_device
+        return self
+
+    def size(self) -> Tuple[int, int]:
+        height, width = self._data.size()
+        return width, height
+
+    @classmethod
+    def from_image(cls, image: Image, device: Union[str, torch.device] = "cpu") -> "GreyscaleImage":
+        img_a = np.array(image)
+        if img_a.ndim == 3:
+            assert img_a.shape[2] == 1
+            img_a = img_a.reshape(img_a.shape[2:])
+        height, width = img_a.shape
+        img_t = Tensor(img_a.reshape((height, width)))
+        return cls(img_t, device=device)
+
+    def to_tensor(self) -> Tensor:
+        return self._data
 
 
 class LatentImage:
@@ -76,7 +152,7 @@ class LatentImage:
             s[:, :, y : y + height, x : x + width] = latent_from._data[
                 :, :, : height - y, : width - x
             ]
-            return LatentImage(s, latent_to._noise_mask)
+            return LatentImage(s, latent_to._noise_mask, device=latent_to.device)
 
         s_from = latent_to._data[:, :, : height - y, : width - x]
         mask = torch.ones_like(s_from)
@@ -98,7 +174,7 @@ class LatentImage:
             + s[:, :, y : y + height, x : x + width] * rev_mask
         )
 
-        return LatentImage(s, latent_to._noise_mask)
+        return LatentImage(s, latent_to._noise_mask, device=latent_to.device)
 
     def upscale(
         self,
@@ -117,13 +193,12 @@ class LatentImage:
             upscale_method.value,
             crop_method.value,
         )
-        return LatentImage(img)
+        return LatentImage(img, device=self.device)
 
-    def set_mask(self, mask: Image) -> "LatentImage":
+    def set_mask(self, mask: GreyscaleImage) -> "LatentImage":
         # SetLatentNoiseMask
-        mask_t, mask_size = _image_to_greyscale_tensor(mask)
-        assert mask_size == self.size()
-        return LatentImage(self._data, mask_t)
+        assert mask.size() == self.size()
+        return LatentImage(self._data, mask=mask.to_tensor(), device=self.device)
 
     def to_internal_representation(self):
         out = {"samples": self._data}

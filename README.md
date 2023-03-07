@@ -86,4 +86,4 @@ image.save("out.png")
 
 # API
 
-*(API documentation in progress)*
+
