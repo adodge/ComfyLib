@@ -163,7 +163,7 @@ class LatentImage(SDType):
             ]
             return LatentImage(s, latent_to._noise_mask, device=latent_to.device)
 
-        s_from = latent_to._data[:, :, : height - y, : width - x]
+        s_from = latent_from._data[:, :, : height - y, : width - x]
         mask = torch.ones_like(s_from)
 
         for t in range(feather):
@@ -214,3 +214,38 @@ class LatentImage(SDType):
         if self._noise_mask is not None:
             out["noise_mask"] = self._noise_mask
         return out
+
+    def to_arrays(self) -> Tuple[np.ndarray, Optional[np.ndarray]]:
+        img: np.ndarray = self._data.detach().cpu().numpy()
+        img = img.reshape(img.shape[1:])
+        img = np.moveaxis(img, (0,1,2), (2,0,1))
+
+        msk = None
+        if self._noise_mask is not None:
+            msk = self._noise_mask.detach().cpu().numpy()
+            msk = np.moveaxis(msk, (0,1), (1,0))
+        return img, msk
+
+    @classmethod
+    def from_arrays(
+        cls, img_a: np.ndarray, mask_a: Optional[np.ndarray], device: Union[str, torch.device] = "cpu"
+    ) -> "LatentImage":
+
+        assert img_a.ndim == 3
+        height, width, channels = img_a.shape
+        assert channels == 4
+        img_a = np.moveaxis(img_a, (2,0,1), (0,1,2))
+        img_a = img_a.reshape((1, *img_a.shape))
+        img_t = Tensor(img_a)
+
+        mask_t = None
+        if mask_a is not None:
+            if mask_a.ndim == 3:
+                assert mask_a.shape[2] == 1
+                mask_a = mask_a.reshape(mask_a[:2])
+            mask_a = np.moveaxis(mask_a, (1,0), (0,1))
+            mask_t = Tensor(mask_a)
+
+
+
+        return cls(img_t, mask=mask_t, device=device)

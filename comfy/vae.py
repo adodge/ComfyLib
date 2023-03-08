@@ -46,28 +46,26 @@ class VAEModel(SDType):
         # VAEEncodeForInpaint
 
         image_t = image.to_tensor().clone()
-        mask_t = image.to_tensor()
+        mask_t = mask.to_tensor()
 
         assert image.size() == mask.size()
         _check_divisible_by_64(*image.size())
 
-        kernel_tensor = torch.ones((1, 1, 6, 6))
+        kernel_tensor = torch.ones((1, 1, 6, 6)).to(self.device)
 
         mask_erosion = torch.clamp(
-            torch.nn.functional.conv2d(
-                (1.0 - mask_t.round())[None], kernel_tensor, padding=3
-            ),
-            0,
-            1,
-        )
+            torch.nn.functional.conv2d((mask_t.round()[None, None]), kernel_tensor, padding=3),
+            0, 1)
+
+        m = 1.0-mask_t.round()
 
         for i in range(3):
             image_t[:, :, :, i] -= 0.5
-            image_t[:, :, :, i] *= mask_erosion[0][:, :].round()
+            image_t[:, :, :, i] *= m
             image_t[:, :, :, i] += 0.5
 
         img = self._model.encode(image_t)
-        return LatentImage(img, mask=mask_t, device=self.device)
+        return LatentImage(img, mask=mask_erosion[0].round(), device=self.device)
 
     @SDType.requires_cuda
     def decode(self, latent_image: LatentImage) -> RGBImage:

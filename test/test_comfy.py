@@ -8,6 +8,7 @@ import torch.cuda
 import gc
 
 from PIL import Image
+from torch import Tensor
 
 import comfy.stable_diffusion
 import comfy.clip
@@ -38,6 +39,16 @@ class TestImageConversions(TestCase):
         r2 = np.array(img2)
         self.assertEqual(r1.shape, r2.shape)
         self.assertTrue(np.all(r1 == r2))
+
+    def test_latent_to_array_roundtrip(self):
+
+        r1: np.ndarray = np.arange(64*64*4).reshape((64,64,4))
+        latent1 = comfy.latent_image.LatentImage.from_arrays(r1, None)
+        r2, _ = latent1.to_arrays()
+
+        self.assertEqual(r1.shape, r2.shape)
+        self.assertTrue(np.all(r1 == r2))
+
 
 
 @pytest.mark.skip()

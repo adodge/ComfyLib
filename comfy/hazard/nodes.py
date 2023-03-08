@@ -18,7 +18,7 @@ def common_ksampler(device, model: LatentDiffusion, seed: int, steps: int, cfg: 
 
     if "noise_mask" in latent:
         noise_mask = latent['noise_mask']
-        noise_mask = torch.nn.functional.interpolate(noise_mask[None,None,], size=(noise.shape[2], noise.shape[3]), mode="bilinear")
+        noise_mask = torch.nn.functional.interpolate(noise_mask[None], size=(noise.shape[2], noise.shape[3]), mode="bilinear")
         noise_mask = noise_mask.round()
         noise_mask = torch.cat([noise_mask] * noise.shape[1], dim=1)
         noise_mask = torch.cat([noise_mask] * noise.shape[0])
