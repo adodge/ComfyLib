@@ -5,7 +5,7 @@ from torch import Tensor
 
 from comfy.hazard.sd import VAE
 from comfy.latent_image import GreyscaleImage, LatentImage, RGBImage
-from comfy.util import SDType, _check_divisible_by_64
+from comfy.util import SDType, _check_divisible_by_64, _check_divisible_by_8
 
 
 class VAEModel(SDType):
@@ -36,7 +36,8 @@ class VAEModel(SDType):
     @SDType.requires_cuda
     def encode(self, image: RGBImage) -> LatentImage:
         # VAEEncode
-        # XXX something's wrong here, I think\
+        # XXX something's wrong here, I think
+        _check_divisible_by_64(*image.size())
         img = self._model.encode(image.to_tensor().to(self.device))
         return LatentImage(img, device=self.device)
 

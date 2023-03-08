@@ -23,7 +23,7 @@ class CropMethod(Enum):
 
 class RGBImage(SDType):
     def __init__(self, data: Tensor, device: Union[str, torch.device] = "cpu"):
-        self._data = data
+        self._data = data  # shape: (1, height, width, 3)
         self.to(device)
 
     def to(self, device: Union[str, torch.device]) -> "RGBImage":
@@ -39,7 +39,7 @@ class RGBImage(SDType):
         return self
 
     def size(self) -> Tuple[int, int]:
-        _, _, height, width = self._data.size()
+        _, height, width, _ = self._data.size()
         return width, height
 
     def to_image(self) -> Image:
@@ -55,7 +55,7 @@ class RGBImage(SDType):
         assert img_a.ndim == 3
         height, width, channels = img_a.shape
         assert channels == 3
-        img_t = Tensor(img_a.reshape((1, height, width, 3)))
+        img_t = Tensor(img_a.reshape((1, height, width, 3))/255)
         return cls(img_t, device=device)
 
     def to_tensor(self) -> Tensor:
@@ -64,7 +64,7 @@ class RGBImage(SDType):
 
 class GreyscaleImage(SDType):
     def __init__(self, data: Tensor, device: Union[str, torch.device] = "cpu"):
-        self._data = data
+        self._data = data  # shape: (height, width)
         self.to(device)
 
     def to(self, device: Union[str, torch.device]) -> "GreyscaleImage":
@@ -83,6 +83,11 @@ class GreyscaleImage(SDType):
         height, width = self._data.size()
         return width, height
 
+    def to_image(self) -> Image:
+        arr = self._data.detach().cpu().numpy()
+        arr = (np.clip(arr, 0, 1) * 255).round().astype("uint8")
+        return Image.fromarray(arr)
+
     @classmethod
     def from_image(
         cls, image: Image, device: Union[str, torch.device] = "cpu"
@@ -92,7 +97,7 @@ class GreyscaleImage(SDType):
             assert img_a.shape[2] == 1
             img_a = img_a.reshape(img_a.shape[2:])
         height, width = img_a.shape
-        img_t = Tensor(img_a.reshape((height, width)))
+        img_t = Tensor(img_a.reshape((height, width))/255)
         return cls(img_t, device=device)
 
     def to_tensor(self) -> Tensor:

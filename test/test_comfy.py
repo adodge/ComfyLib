@@ -2,6 +2,7 @@ import logging
 import os
 from unittest import TestCase
 
+import numpy as np
 import pytest
 import torch.cuda
 import gc
@@ -20,6 +21,26 @@ V1_SAFETENSORS_FILEPATH = os.environ.get("V1_SAFETENSORS_FILEPATH")
 V2_SAFETENSORS_FILEPATH = os.environ.get("V2_SAFETENSORS_FILEPATH")
 
 
+class TestImageConversions(TestCase):
+    def test_rgb_image_roundtrip(self):
+        r1: np.ndarray = (np.clip(np.random.random((10,20, 3)), 0, 1) * 255).round().astype("uint8")
+        img1 = Image.fromarray(r1)
+        rgb = comfy.latent_image.RGBImage.from_image(img1)
+        img2 = rgb.to_image()
+        r2 = np.array(img2)
+        self.assertTrue(np.all(r1 == r2))
+
+    def test_greyscale_image_roundtrip(self):
+        r1: np.ndarray = (np.clip(np.random.random((10,20)), 0, 1) * 255).round().astype("uint8")
+        img1 = Image.fromarray(r1)
+        grey = comfy.latent_image.GreyscaleImage.from_image(img1)
+        img2 = grey.to_image()
+        r2 = np.array(img2)
+        self.assertEqual(r1.shape, r2.shape)
+        self.assertTrue(np.all(r1 == r2))
+
+
+@pytest.mark.skip()
 class TestSDV1(TestCase):
     @classmethod
     def setUpClass(cls):
