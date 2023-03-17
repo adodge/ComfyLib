@@ -51,7 +51,6 @@ class TestImageConversions(TestCase):
 
 
 
-@pytest.mark.skip()
 class TestSDV1(TestCase):
     @classmethod
     def setUpClass(cls):
@@ -170,7 +169,6 @@ class TestSDV1(TestCase):
             comfy.stable_diffusion.load_checkpoint(V1_CHECKPOINT_FILEPATH, config)
 
 
-@pytest.mark.skip()
 class TestSDV2(TestCase):
     @classmethod
     def setUpClass(cls):

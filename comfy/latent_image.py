@@ -56,13 +56,13 @@ class RGBImage(SDType):
 
     @classmethod
     def from_image(
-        cls, image: Image, device: Union[str, torch.device] = "cpu"
+            cls, image: Image, device: Union[str, torch.device] = "cpu"
     ) -> "RGBImage":
         img_a = np.array(image)
         assert img_a.ndim == 3
         height, width, channels = img_a.shape
         assert channels == 3
-        img_t = Tensor(img_a.reshape((1, height, width, 3))/255)
+        img_t = Tensor(img_a.reshape((1, height, width, 3)) / 255)
         return cls(img_t, device=device)
 
     def to_tensor(self) -> Tensor:
@@ -97,14 +97,14 @@ class GreyscaleImage(SDType):
 
     @classmethod
     def from_image(
-        cls, image: Image, device: Union[str, torch.device] = "cpu"
+            cls, image: Image, device: Union[str, torch.device] = "cpu"
     ) -> "GreyscaleImage":
         img_a = np.array(image)
         if img_a.ndim == 3:
             assert img_a.shape[2] == 1
             img_a = img_a.reshape(img_a.shape[2:])
         height, width = img_a.shape
-        img_t = Tensor(img_a.reshape((height, width))/255)
+        img_t = Tensor(img_a.reshape((height, width)) / 255)
         return cls(img_t, device=device)
 
     def to_tensor(self) -> Tensor:
@@ -113,10 +113,10 @@ class GreyscaleImage(SDType):
 
 class LatentImage(SDType):
     def __init__(
-        self,
-        data: Tensor,
-        mask: Optional[Tensor] = None,
-        device: Union[str, torch.device] = "cpu",
+            self,
+            data: Tensor,
+            mask: Optional[Tensor] = None,
+            device: Union[str, torch.device] = "cpu",
     ):
         self._data = data
         self._noise_mask: Optional[Tensor] = mask
@@ -149,12 +149,12 @@ class LatentImage(SDType):
 
     @classmethod
     def combine(
-        cls,
-        latent_to: "LatentImage",
-        latent_from: "LatentImage",
-        x: int,
-        y: int,
-        feather: int,
+            cls,
+            latent_to: "LatentImage",
+            latent_from: "LatentImage",
+            x: int,
+            y: int,
+            feather: int,
     ) -> "LatentImage":
         # LatentComposite
         x, y, feather = _check_divisible_by_8(x, y, feather)
@@ -165,9 +165,9 @@ class LatentImage(SDType):
         width, height = latent_from.size()
 
         if feather == 0:
-            s[:, :, y : y + height, x : x + width] = latent_from._data[
-                :, :, : height - y, : width - x
-            ]
+            s[:, :, y: y + height, x: x + width] = latent_from._data[
+                                                   :, :, : height - y, : width - x
+                                                   ]
             return LatentImage(s, latent_to._noise_mask, device=latent_to.device)
 
         s_from = latent_from._data[:, :, : height - y, : width - x]
@@ -176,28 +176,28 @@ class LatentImage(SDType):
         for t in range(feather):
             c = (1.0 / feather) * (t + 1)
             if y != 0:
-                mask[:, :, t : 1 + t, :] *= c
+                mask[:, :, t: 1 + t, :] *= c
             if y + height < height:
-                mask[:, :, height - 1 - t : height - t, :] *= c
+                mask[:, :, height - 1 - t: height - t, :] *= c
             if x != 0:
-                mask[:, :, :, t : 1 + t] *= c
+                mask[:, :, :, t: 1 + t] *= c
             if x + width < width:
-                mask[:, :, :, width - 1 - t : width - t] *= c
+                mask[:, :, :, width - 1 - t: width - t] *= c
 
         rev_mask = torch.ones_like(mask) - mask
-        s[:, :, y : y + height, x : x + width] = (
-            s_from[:, :, : height - y, : width - x] * mask
-            + s[:, :, y : y + height, x : x + width] * rev_mask
+        s[:, :, y: y + height, x: x + width] = (
+                s_from[:, :, : height - y, : width - x] * mask
+                + s[:, :, y: y + height, x: x + width] * rev_mask
         )
 
         return LatentImage(s, latent_to._noise_mask, device=latent_to.device)
 
     def upscale(
-        self,
-        width: int,
-        height: int,
-        upscale_method: UpscaleMethod,
-        crop_method: CropMethod,
+            self,
+            width: int,
+            height: int,
+            upscale_method: UpscaleMethod,
+            crop_method: CropMethod,
     ) -> "LatentImage":
         # LatentUpscale
         width, height = _check_divisible_by_8(width, height)
@@ -225,23 +225,24 @@ class LatentImage(SDType):
     def to_arrays(self) -> Tuple[np.ndarray, Optional[np.ndarray]]:
         img: np.ndarray = self._data.detach().cpu().numpy()
         img = img.reshape(img.shape[1:])
-        img = np.moveaxis(img, (0,1,2), (2,0,1))
+        img = np.moveaxis(img, (0, 1, 2), (2, 0, 1))
 
         msk = None
         if self._noise_mask is not None:
             msk = self._noise_mask.detach().cpu().numpy()
-            msk = np.moveaxis(msk, (0,1), (1,0))
+            msk = np.moveaxis(msk, (0, 1), (1, 0))
         return img, msk
 
     @classmethod
     def from_arrays(
-        cls, img_a: np.ndarray, mask_a: Optional[np.ndarray], device: Union[str, torch.device] = "cpu"
+            cls, img_a: np.ndarray, mask_a: Optional[np.ndarray],
+            device: Union[str, torch.device] = "cpu"
     ) -> "LatentImage":
 
         assert img_a.ndim == 3
         height, width, channels = img_a.shape
         assert channels == 4
-        img_a = np.moveaxis(img_a, (2,0,1), (0,1,2))
+        img_a = np.moveaxis(img_a, (2, 0, 1), (0, 1, 2))
         img_a = img_a.reshape((1, *img_a.shape))
         img_t = Tensor(img_a)
 
@@ -250,7 +251,7 @@ class LatentImage(SDType):
             if mask_a.ndim == 3:
                 assert mask_a.shape[2] == 1
                 mask_a = mask_a.reshape(mask_a[:2])
-            mask_a = np.moveaxis(mask_a, (1,0), (0,1))
+            mask_a = np.moveaxis(mask_a, (1, 0), (0, 1))
             mask_t = Tensor(mask_a)
 
         return cls(img_t, mask=mask_t, device=device)

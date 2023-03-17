@@ -6,12 +6,12 @@ from typing import Optional, Tuple, Union
 import torch
 from omegaconf import DictConfig, OmegaConf
 
+from hazard.sd import load_checkpoint as _load_checkpoint, ModelPatcher, load_checkpoint_guess_config as _load_checkpoint_guess_config
 from comfy.clip import CLIPModel
 from comfy.conditioning import Conditioning
 from comfy.hazard.ldm.models.diffusion.ddpm import LatentDiffusion
 from comfy.hazard.nodes import common_ksampler
 from comfy.latent_image import LatentImage
-from comfy.native.io import load_checkpoint as _load_checkpoint
 from comfy.util import ModelLoadError, SDType
 from comfy.vae import VAEModel
 
@@ -177,22 +177,30 @@ class StableDiffusionModel(SDType):
 
 def load_checkpoint(
     checkpoint_filepath: str,
-    config: CheckpointConfig,
+    config: Optional[CheckpointConfig] = None,
     embedding_directory: Optional[str] = None,
     device: Union[str, torch.device] = "cpu",
 ) -> Tuple[StableDiffusionModel, CLIPModel, VAEModel]:
     # CheckpointLoader
+    stable_diffusion_model_patcher: ModelPatcher
     try:
-        stable_diffusion, clip, vae = _load_checkpoint(
-            config=config.to_omegaconf(),
-            filepath=checkpoint_filepath,
-            embedding_directory=embedding_directory,
-        )
+        if config is not None:
+            stable_diffusion_model_patcher, clip, vae = _load_checkpoint(
+                config_path=config.to_file_like() if config else None,
+                ckpt_path=checkpoint_filepath,
+                embedding_directory=embedding_directory,
+            )
+        else:
+
+            stable_diffusion_model_patcher, clip, vae = _load_checkpoint_guess_config(
+                ckpt_path=checkpoint_filepath,
+                embedding_directory=embedding_directory,
+            )
     except RuntimeError as e:
         raise ModelLoadError("Failed to load checkpoint.") from e
 
     return (
-        StableDiffusionModel(stable_diffusion, device=device),
+        StableDiffusionModel(stable_diffusion_model_patcher.model, device=device),
         CLIPModel(clip, device=device),
         VAEModel(vae, device=device),
     )

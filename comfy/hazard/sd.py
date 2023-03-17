@@ -1,10 +1,12 @@
+from typing import Dict
+
 import torch
 import contextlib
 
-from omegaconf import OmegaConf
-from .cldm import cldm
-from .ldm.models.autoencoder import AutoencoderKL
 from .ldm.util import instantiate_from_config
+from .ldm.models.autoencoder import AutoencoderKL
+import yaml
+from .cldm import cldm
 from .t2i_adapter import adapter
 
 from . import utils, sd2_clip, sd1_clip, model_management
@@ -24,12 +26,7 @@ def load_torch_file(ckpt):
             sd = pl_sd
     return sd
 
-def load_model_from_config(config, ckpt, verbose=False, load_state_dict_to=[]):
-    print(f"Loading model from {ckpt}")
-
-    sd = load_torch_file(ckpt)
-    model = instantiate_from_config(config.model)
-
+def load_model_weights(model, sd, verbose=False, load_state_dict_to=[]):
     m, u = model.load_state_dict(sd, strict=False)
 
     k = list(sd.keys())
@@ -102,7 +99,7 @@ LORA_CLIP_MAP = {
     "self_attn.out_proj": "self_attn_out_proj",
 }
 
-LORA_UNET_MAP = {
+LORA_UNET_MAP_ATTENTIONS = {
     "proj_in": "proj_in",
     "proj_out": "proj_out",
     "transformer_blocks.0.attn1.to_q": "transformer_blocks_0_attn1_to_q",
@@ -115,6 +112,13 @@ LORA_UNET_MAP = {
     "transformer_blocks.0.attn2.to_out.0": "transformer_blocks_0_attn2_to_out_0",
     "transformer_blocks.0.ff.net.0.proj": "transformer_blocks_0_ff_net_0_proj",
     "transformer_blocks.0.ff.net.2": "transformer_blocks_0_ff_net_2",
+}
+
+LORA_UNET_MAP_RESNET = {
+    "in_layers.2": "resnets_{}_conv1",
+    "emb_layers.1": "resnets_{}_time_emb_proj",
+    "out_layers.3": "resnets_{}_conv2",
+    "skip_connection": "resnets_{}_conv_shortcut"
 }
 
 
@@ -146,27 +150,27 @@ def model_lora_keys(model, key_map={}):
     for b in range(12):
         tk = "model.diffusion_model.input_blocks.{}.1".format(b)
         up_counter = 0
-        for c in LORA_UNET_MAP:
+        for c in LORA_UNET_MAP_ATTENTIONS:
             k = "{}.{}.weight".format(tk, c)
             if k in sdk:
-                lora_key = "lora_unet_down_blocks_{}_attentions_{}_{}".format(counter // 2, counter % 2, LORA_UNET_MAP[c])
+                lora_key = "lora_unet_down_blocks_{}_attentions_{}_{}".format(counter // 2, counter % 2, LORA_UNET_MAP_ATTENTIONS[c])
                 key_map[lora_key] = k
                 up_counter += 1
         if up_counter >= 4:
             counter += 1
-    for c in LORA_UNET_MAP:
+    for c in LORA_UNET_MAP_ATTENTIONS:
         k = "model.diffusion_model.middle_block.1.{}.weight".format(c)
         if k in sdk:
-            lora_key = "lora_unet_mid_block_attentions_0_{}".format(LORA_UNET_MAP[c])
+            lora_key = "lora_unet_mid_block_attentions_0_{}".format(LORA_UNET_MAP_ATTENTIONS[c])
             key_map[lora_key] = k
     counter = 3
     for b in range(12):
         tk = "model.diffusion_model.output_blocks.{}.1".format(b)
         up_counter = 0
-        for c in LORA_UNET_MAP:
+        for c in LORA_UNET_MAP_ATTENTIONS:
             k = "{}.{}.weight".format(tk, c)
             if k in sdk:
-                lora_key = "lora_unet_up_blocks_{}_attentions_{}_{}".format(counter // 3, counter % 3, LORA_UNET_MAP[c])
+                lora_key = "lora_unet_up_blocks_{}_attentions_{}_{}".format(counter // 3, counter % 3, LORA_UNET_MAP_ATTENTIONS[c])
                 key_map[lora_key] = k
                 up_counter += 1
         if up_counter >= 4:
@@ -179,6 +183,61 @@ def model_lora_keys(model, key_map={}):
             if k in sdk:
                 lora_key = text_model_lora_key.format(b, LORA_CLIP_MAP[c])
                 key_map[lora_key] = k
+
+
+    #Locon stuff
+    ds_counter = 0
+    counter = 0
+    for b in range(12):
+        tk = "model.diffusion_model.input_blocks.{}.0".format(b)
+        key_in = False
+        for c in LORA_UNET_MAP_RESNET:
+            k = "{}.{}.weight".format(tk, c)
+            if k in sdk:
+                lora_key = "lora_unet_down_blocks_{}_{}".format(counter // 2, LORA_UNET_MAP_RESNET[c].format(counter % 2))
+                key_map[lora_key] = k
+                key_in = True
+        for bb in range(3):
+            k = "{}.{}.op.weight".format(tk[:-2], bb)
+            if k in sdk:
+                lora_key = "lora_unet_down_blocks_{}_downsamplers_0_conv".format(ds_counter)
+                key_map[lora_key] = k
+                ds_counter += 1
+        if key_in:
+            counter += 1
+
+    counter = 0
+    for b in range(3):
+        tk = "model.diffusion_model.middle_block.{}".format(b)
+        key_in = False
+        for c in LORA_UNET_MAP_RESNET:
+            k = "{}.{}.weight".format(tk, c)
+            if k in sdk:
+                lora_key = "lora_unet_mid_block_{}".format(LORA_UNET_MAP_RESNET[c].format(counter))
+                key_map[lora_key] = k
+                key_in = True
+        if key_in:
+            counter += 1
+
+    counter = 0
+    us_counter = 0
+    for b in range(12):
+        tk = "model.diffusion_model.output_blocks.{}.0".format(b)
+        key_in = False
+        for c in LORA_UNET_MAP_RESNET:
+            k = "{}.{}.weight".format(tk, c)
+            if k in sdk:
+                lora_key = "lora_unet_up_blocks_{}_{}".format(counter // 3, LORA_UNET_MAP_RESNET[c].format(counter % 3))
+                key_map[lora_key] = k
+                key_in = True
+        for bb in range(3):
+            k = "{}.{}.conv.weight".format(tk[:-2], bb)
+            if k in sdk:
+                lora_key = "lora_unet_up_blocks_{}_upsamplers_0_conv".format(us_counter)
+                key_map[lora_key] = k
+                us_counter += 1
+        if key_in:
+            counter += 1
 
     return key_map
 
@@ -225,8 +284,11 @@ class ModelPatcher:
         return self.model
     def unpatch_model(self):
         model_sd = self.model.state_dict()
-        for k in self.backup:
+        keys = list(self.backup.keys())
+        for k in keys:
             model_sd[k][:] = self.backup[k]
+            del self.backup[k]
+
         self.backup = {}
 
 def load_lora_for_models(model, clip, lora_path, strength_model, strength_clip):
@@ -266,6 +328,7 @@ class CLIP:
         self.cond_stage_model = clip(**(params))
         self.tokenizer = tokenizer(embedding_directory=embedding_directory)
         self.patcher = ModelPatcher(self.cond_stage_model)
+        self.layer_idx = None
 
     def clone(self):
         n = CLIP(no_init=True)
@@ -273,6 +336,7 @@ class CLIP:
         n.patcher = self.patcher.clone()
         n.cond_stage_model = self.cond_stage_model
         n.tokenizer = self.tokenizer
+        n.layer_idx = self.layer_idx
         return n
 
     def load_from_state_dict(self, sd):
@@ -282,16 +346,18 @@ class CLIP:
         return self.patcher.add_patches(patches, strength)
 
     def clip_layer(self, layer_idx):
-        return self.cond_stage_model.clip_layer(layer_idx)
+        self.layer_idx = layer_idx
 
     def encode(self, text):
+        if self.layer_idx is not None:
+            self.cond_stage_model.clip_layer(self.layer_idx)
         tokens = self.tokenizer.tokenize_with_weights(text)
         try:
-            #self.patcher.patch_model()
+            self.patcher.patch_model()
             cond = self.cond_stage_model.encode_token_weights(tokens)
-            #self.patcher.unpatch_model()
+            self.patcher.unpatch_model()
         except Exception as e:
-            #self.patcher.unpatch_model()
+            self.patcher.unpatch_model()
             raise e
         return cond
 
@@ -343,6 +409,13 @@ class VAE:
     def encode(self, pixel_samples):
         pixel_samples = pixel_samples.movedim(-1,1)
         samples = self.first_stage_model.encode(2. * pixel_samples - 1.).sample() * self.scale_factor
+        return samples
+
+    def encode_tiled(self, pixel_samples, tile_x=512, tile_y=512, overlap=64):
+        pixel_samples = pixel_samples.movedim(-1, 1)
+        samples = utils.tiled_scale(pixel_samples,
+                                    lambda a: self.first_stage_model.encode(2. * a - 1.).sample() * self.scale_factor,
+                                    tile_x, tile_y, overlap, upscale_amount=(1 / 8), out_channels=4)
         return samples
 
 
@@ -604,9 +677,29 @@ def load_t2i_adapter(ckpt_path, model=None):
     model_ad.load_state_dict(t2i_data)
     return T2IAdapter(model_ad, cin // 64)
 
+
+class StyleModel:
+    def __init__(self, model, device="cpu"):
+        self.model = model
+
+    def get_cond(self, input):
+        return self.model(input.last_hidden_state)
+
+
+def load_style_model(ckpt_path):
+    model_data = load_torch_file(ckpt_path)
+    keys = model_data.keys()
+    if "style_embedding" in keys:
+        model = adapter.StyleAdapter(width=1024, context_dim=768, num_head=8, n_layes=3, num_token=8)
+    else:
+        raise Exception("invalid style model {}".format(ckpt_path))
+    model.load_state_dict(model_data)
+    return StyleModel(model)
+
+
 def load_clip(ckpt_path, embedding_directory=None):
     clip_data = load_torch_file(ckpt_path)
-    config = {}
+    config: Dict[str,str] = {}
     if "text_model.encoder.layers.22.mlp.fc1.weight" in clip_data:
         config['target'] = 'ldm.modules.encoders.modules.FrozenOpenCLIPEmbedder'
     else:
@@ -616,11 +709,21 @@ def load_clip(ckpt_path, embedding_directory=None):
     return clip
 
 def load_checkpoint(config_path, ckpt_path, output_vae=True, output_clip=True, embedding_directory=None):
-    config = OmegaConf.load(config_path)
+    if isinstance(config_path, str):
+        with open(config_path, 'r') as stream:
+            config = yaml.safe_load(stream)
+    else:
+            config = yaml.safe_load(config_path)
     model_config_params = config['model']['params']
     clip_config = model_config_params['cond_stage_config']
     scale_factor = model_config_params['scale_factor']
     vae_config = model_config_params['first_stage_config']
+
+    fp16 = False
+    if "unet_config" in model_config_params:
+        if "params" in model_config_params["unet_config"]:
+            if "use_fp16" in model_config_params["unet_config"]["params"]:
+                fp16 = model_config_params["unet_config"]["params"]["use_fp16"]
 
     clip = None
     vae = None
@@ -640,7 +743,13 @@ def load_checkpoint(config_path, ckpt_path, output_vae=True, output_clip=True, e
         w.cond_stage_model = clip.cond_stage_model
         load_state_dict_to = [w]
 
-    model = load_model_from_config(config, ckpt_path, verbose=False, load_state_dict_to=load_state_dict_to)
+    model = instantiate_from_config(config["model"])
+    sd = load_torch_file(ckpt_path)
+    model = load_model_weights(model, sd, verbose=False, load_state_dict_to=load_state_dict_to)
+
+    if fp16:
+        model = model.half()
+
     return (ModelPatcher(model), clip, vae)
 
 
@@ -650,7 +759,7 @@ def load_checkpoint_guess_config(ckpt_path, output_vae=True, output_clip=True, e
     clip = None
     vae = None
 
-    #fp16 = model_management.should_use_fp16()
+    fp16 = model_management.should_use_fp16()
 
     class WeightsLoader(torch.nn.Module):
         pass
