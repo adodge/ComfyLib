@@ -47,6 +47,13 @@ class RGBImage(SDType):
         arr = (np.clip(arr, 0, 1) * 255).round().astype("uint8")
         return Image.fromarray(arr)
 
+    def to_array(self, clip=True) -> np.ndarray:
+        arr = self._data.detach().cpu().numpy().reshape(self._data.shape[1:])
+        if clip:
+            arr = np.clip(arr, 0, 1)
+        arr = arr.astype("float32")
+        return arr
+
     @classmethod
     def from_image(
         cls, image: Image, device: Union[str, torch.device] = "cpu"
@@ -245,7 +252,5 @@ class LatentImage(SDType):
                 mask_a = mask_a.reshape(mask_a[:2])
             mask_a = np.moveaxis(mask_a, (1,0), (0,1))
             mask_t = Tensor(mask_a)
-
-
 
         return cls(img_t, mask=mask_t, device=device)
