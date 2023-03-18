@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "comfylib"
-version = "0.0.1"
+version = "0.0.2"
 authors = [
   {name="comfyanonymous"},
   {name="Alex Dodge", email="alexdodge@gmail.com"},
@@ -21,5 +21,5 @@ keywords = ["stable diffusion"]
 
 [project.urls]
 "Library Homepage" = "https://github.com/adodge/ComfyLib"
-"Lirbary Bug Tracker" = "https://github.com/adodge/ComfyLib/issues"
+"Library Bug Tracker" = "https://github.com/adodge/ComfyLib/issues"
 "Original Project Homepage" = "https://github.com/comfyanonymous/ComfyUI"
