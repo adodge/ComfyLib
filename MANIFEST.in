@@ -1,0 +1,2 @@
+include comfy/configs/*.yaml
+include comfy/hazard/*_clip_config.json
