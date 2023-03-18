@@ -191,6 +191,7 @@ def load_checkpoint(
     embedding_directory: Optional[str] = None,
     device: Union[str, torch.device] = "cpu",
 ) -> Tuple[StableDiffusionModel, CLIPModel, VAEModel]:
+
     # CheckpointLoader
     stable_diffusion_model_patcher: ModelPatcher
     try:

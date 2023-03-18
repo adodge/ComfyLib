@@ -65,6 +65,14 @@ class RGBImage(SDType):
         img_t = Tensor(img_a.reshape((1, height, width, 3)) / 255)
         return cls(img_t, device=device)
 
+    @classmethod
+    def from_array(cls, img_a: np.ndarray, clip=True, device: Union[str, torch.device] = "cpu") -> "RGBImage":
+        height, width, channels = img_a.shape
+        assert channels == 3
+        img_t = Tensor(img_a.reshape((1, height, width, 3)))
+        return cls(img_t, device=device)
+
+
     def to_tensor(self) -> Tensor:
         return self._data
 
@@ -95,6 +103,13 @@ class GreyscaleImage(SDType):
         arr = (np.clip(arr, 0, 1) * 255).round().astype("uint8")
         return Image.fromarray(arr)
 
+    def to_array(self, clip=True) -> np.ndarray:
+        arr = self._data.detach().cpu().numpy()
+        if clip:
+            arr = np.clip(arr, 0, 1)
+        arr = arr.astype("float32")
+        return arr
+
     @classmethod
     def from_image(
             cls, image: Image, device: Union[str, torch.device] = "cpu"
@@ -105,6 +120,14 @@ class GreyscaleImage(SDType):
             img_a = img_a.reshape(img_a.shape[2:])
         height, width = img_a.shape
         img_t = Tensor(img_a.reshape((height, width)) / 255)
+        return cls(img_t, device=device)
+
+    @classmethod
+    def from_array(cls, img_a: np.ndarray, clip=True, device: Union[str, torch.device] = "cpu") -> "GreyscaleImage":
+        if img_a.ndim == 3:
+            assert img_a.shape[2] == 1
+            img_a = img_a.reshape(img_a.shape[2:])
+        img_t = Tensor(img_a.reshape((height, width)))
         return cls(img_t, device=device)
 
     def to_tensor(self) -> Tensor:
