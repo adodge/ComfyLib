@@ -47,11 +47,14 @@ used instead of strings, when applicable, etc.
 
 # Installation
 
-For now you can install from github:
+You can install from github:
 
 ```
 pip3 install git+https://github.com/adodge/ComfyLib
 ```
+
+You may also be able to install from PyPi, but that process will be clarified
+when this project is more stable.
 
 # Example
 
