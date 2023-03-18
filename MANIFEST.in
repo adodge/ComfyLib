@@ -1,2 +1,3 @@
 include comfy/configs/*.yaml
 include comfy/hazard/*_clip_config.json
+include comfy/hazard/sd1_tokenizer/*
