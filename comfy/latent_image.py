@@ -127,6 +127,7 @@ class GreyscaleImage(SDType):
         if img_a.ndim == 3:
             assert img_a.shape[2] == 1
             img_a = img_a.reshape(img_a.shape[2:])
+        height, width = img_a.shape
         img_t = Tensor(img_a.reshape((height, width)))
         return cls(img_t, device=device)
 

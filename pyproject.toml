@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "comfy-lib"
+name = "comfylib"
 version = "0.0.1"
 authors = [
   {name="comfyanonymous"},
@@ -16,11 +16,10 @@ classifiers = [
     "Development Status :: 2 - Pre-Alpha",
 	"Programming Language :: Python :: 3",
     "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
-    "Environment :: GPU :: NVIDIA CUDA",
 ]
 keywords = ["stable diffusion"]
 
 [project.urls]
-"Library Homepage" = "https://github.com/adodge/Comfy-Lib"
-"Lirbary Bug Tracker" = "https://github.com/adodge/Comfy-Lib/issues"
+"Library Homepage" = "https://github.com/adodge/ComfyLib"
+"Lirbary Bug Tracker" = "https://github.com/adodge/ComfyLib/issues"
 "Original Project Homepage" = "https://github.com/comfyanonymous/ComfyUI"

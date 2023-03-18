@@ -1,20 +1,17 @@
+import gc
 import logging
 import os
 from unittest import TestCase
 
 import numpy as np
-import pytest
 import torch.cuda
-import gc
-
 from PIL import Image
-from torch import Tensor
 
-import comfy.stable_diffusion
 import comfy.clip
-import comfy.vae
 import comfy.conditioning
 import comfy.latent_image
+import comfy.stable_diffusion
+import comfy.vae
 from comfy.util import ModelLoadError
 
 V1_CHECKPOINT_FILEPATH = os.environ.get("V1_CHECKPOINT_FILEPATH")
@@ -24,7 +21,7 @@ V2_SAFETENSORS_FILEPATH = os.environ.get("V2_SAFETENSORS_FILEPATH")
 
 class TestImageConversions(TestCase):
     def test_rgb_image_roundtrip(self):
-        r1: np.ndarray = (np.clip(np.random.random((10,20, 3)), 0, 1) * 255).round().astype("uint8")
+        r1: np.ndarray = (np.clip(np.random.random((10, 20, 3)), 0, 1) * 255).round().astype("uint8")
         img1 = Image.fromarray(r1)
         rgb = comfy.latent_image.RGBImage.from_image(img1)
         img2 = rgb.to_image()
@@ -32,7 +29,7 @@ class TestImageConversions(TestCase):
         self.assertTrue(np.all(r1 == r2))
 
     def test_greyscale_image_roundtrip(self):
-        r1: np.ndarray = (np.clip(np.random.random((10,20)), 0, 1) * 255).round().astype("uint8")
+        r1: np.ndarray = (np.clip(np.random.random((10, 20)), 0, 1) * 255).round().astype("uint8")
         img1 = Image.fromarray(r1)
         grey = comfy.latent_image.GreyscaleImage.from_image(img1)
         img2 = grey.to_image()
@@ -41,12 +38,23 @@ class TestImageConversions(TestCase):
         self.assertTrue(np.all(r1 == r2))
 
     def test_latent_to_array_roundtrip(self):
-
-        r1: np.ndarray = np.arange(64*64*4).reshape((64,64,4))
+        r1: np.ndarray = np.arange(64 * 64 * 4).reshape((64, 64, 4))
         latent1 = comfy.latent_image.LatentImage.from_arrays(r1, None)
         r2, _ = latent1.to_arrays()
 
         self.assertEqual(r1.shape, r2.shape)
+        self.assertTrue(np.all(r1 == r2))
+
+    def test_rgb_array_roundtrip(self):
+        r1: np.ndarray = np.clip(np.random.random((10, 20, 3)), 0, 1).astype("float32")
+        rgb = comfy.latent_image.RGBImage.from_array(r1)
+        r2 = rgb.to_array()
+        self.assertTrue(np.all(r1 == r2))
+
+    def test_greyscale_array_roundtrip(self):
+        r1: np.ndarray = np.clip(np.random.random((10, 20)), 0, 1).astype("float32")
+        rgb = comfy.latent_image.GreyscaleImage.from_array(r1)
+        r2 = rgb.to_array()
         self.assertTrue(np.all(r1 == r2))
 
 
@@ -101,7 +109,6 @@ class TestSDV1(TestCase):
 
     @torch.no_grad()
     def test_image_to_image(self):
-
         input_image = Image.open("example.png")
         input_image_t = comfy.latent_image.RGBImage.from_image(input_image, device="cuda")
 
@@ -144,12 +151,12 @@ class TestSDV1(TestCase):
         self.sd.to("cpu")
 
         result2 = result.upscale(1152, 1152, upscale_method=comfy.latent_image.UpscaleMethod.NEAREST,
-                       crop_method=comfy.latent_image.CropMethod.DISABLED)
+                                 crop_method=comfy.latent_image.CropMethod.DISABLED)
 
         self.sd.to("cuda")
         result3 = self.sd.sample(positive=pos, negative=neg, latent_image=result2, seed=0, steps=2, cfg_scale=8,
-                                sampler=comfy.stable_diffusion.Sampler.SAMPLE_DPMpp_SDE,
-                                scheduler=comfy.stable_diffusion.Scheduler.SIMPLE, denoise_strength=0.5)
+                                 sampler=comfy.stable_diffusion.Sampler.SAMPLE_DPMpp_SDE,
+                                 scheduler=comfy.stable_diffusion.Scheduler.SIMPLE, denoise_strength=0.5)
         self.sd.to("cpu")
 
         self.vae.to("cuda")
