@@ -6,7 +6,7 @@ from typing import Optional, Tuple, Union
 import torch
 from omegaconf import DictConfig, OmegaConf
 
-from hazard.sd import load_checkpoint as _load_checkpoint, ModelPatcher, load_checkpoint_guess_config as _load_checkpoint_guess_config
+from comfy.hazard.sd import load_checkpoint as _load_checkpoint, ModelPatcher, load_checkpoint_guess_config as _load_checkpoint_guess_config
 from comfy.clip import CLIPModel
 from comfy.conditioning import Conditioning
 from comfy.hazard.ldm.models.diffusion.ddpm import LatentDiffusion
@@ -14,6 +14,11 @@ from comfy.hazard.nodes import common_ksampler
 from comfy.latent_image import LatentImage
 from comfy.util import ModelLoadError, SDType
 from comfy.vae import VAEModel
+
+
+class SDVersion(Enum):
+    SD1x = "SD1.x"
+    SD2x = "SD2.x"
 
 
 class Sampler(Enum):
@@ -63,13 +68,21 @@ class CheckpointConfig:
     def to_omegaconf(self) -> DictConfig:
         return self.config
 
+    def to_version(self) -> SDVersion:
+        if self.config.model.params.unet_config.params.context_dim == 768:
+            return SDVersion.SD1x
+        else:
+            return SDVersion.SD2x
+
+
 
 class StableDiffusionModel(SDType):
     def __init__(
-        self, model: LatentDiffusion, device: Union[str, torch.device] = "cpu"
+        self, model: LatentDiffusion, version: SDVersion, device: Union[str, torch.device] = "cpu"
     ):
         self._model: LatentDiffusion = model
         self.to(device)
+        self.version = version
 
     def to(self, device: Union[str, torch.device]) -> "StableDiffusionModel":
         """
@@ -87,15 +100,12 @@ class StableDiffusionModel(SDType):
     def from_checkpoint(
         cls,
         checkpoint_filepath: str,
-        config: CheckpointConfig,
+        config: Optional[CheckpointConfig] = None,
         device: Union[str, torch.device] = "cpu",
     ) -> "StableDiffusionModel":
         # CheckpointLoader
-        stable_diffusion, _, _ = _load_checkpoint(
-            config=config.to_omegaconf(),
-            filepath=checkpoint_filepath,
-        )
-        return cls(stable_diffusion, device=device)
+        sd, _, _ = load_checkpoint(checkpoint_filepath, config=config, device=device)
+        return sd
 
     @SDType.requires_cuda
     def sample(
@@ -190,17 +200,22 @@ def load_checkpoint(
                 ckpt_path=checkpoint_filepath,
                 embedding_directory=embedding_directory,
             )
+            version = config.to_version()
         else:
 
-            stable_diffusion_model_patcher, clip, vae = _load_checkpoint_guess_config(
+            stable_diffusion_model_patcher, clip, vae, version = _load_checkpoint_guess_config(
                 ckpt_path=checkpoint_filepath,
                 embedding_directory=embedding_directory,
             )
+            if version == "SD1.x":
+                version = SDVersion.SD1x
+            else:
+                version = SDVersion.SD2x
     except RuntimeError as e:
         raise ModelLoadError("Failed to load checkpoint.") from e
 
     return (
-        StableDiffusionModel(stable_diffusion_model_patcher.model, device=device),
+        StableDiffusionModel(stable_diffusion_model_patcher.model, device=device, version=version),
         CLIPModel(clip, device=device),
         VAEModel(vae, device=device),
     )

@@ -50,7 +50,6 @@ class TestImageConversions(TestCase):
         self.assertTrue(np.all(r1 == r2))
 
 
-
 class TestSDV1(TestCase):
     @classmethod
     def setUpClass(cls):
@@ -75,6 +74,7 @@ class TestSDV1(TestCase):
         self.assertIsInstance(self.sd, comfy.stable_diffusion.StableDiffusionModel)
         self.assertIsInstance(self.clip, comfy.clip.CLIPModel)
         self.assertIsInstance(self.vae, comfy.vae.VAEModel)
+        self.assertEqual(self.sd.version, comfy.stable_diffusion.SDVersion.SD1x)
 
     @torch.no_grad()
     def test_text_to_image(self):
@@ -168,6 +168,11 @@ class TestSDV1(TestCase):
         with self.assertRaises(ModelLoadError):
             comfy.stable_diffusion.load_checkpoint(V1_CHECKPOINT_FILEPATH, config)
 
+    @torch.no_grad()
+    def test_clip_version_propagation(self):
+        cond = self.clip.encode("Foo")
+        self.assertEqual(cond.version, comfy.conditioning.ConditioningVersion.SD1x)
+
 
 class TestSDV2(TestCase):
     @classmethod
@@ -193,6 +198,7 @@ class TestSDV2(TestCase):
         self.assertIsInstance(self.sd, comfy.stable_diffusion.StableDiffusionModel)
         self.assertIsInstance(self.clip, comfy.clip.CLIPModel)
         self.assertIsInstance(self.vae, comfy.vae.VAEModel)
+        self.assertEqual(self.sd.version, comfy.stable_diffusion.SDVersion.SD2x)
 
     @torch.no_grad()
     def test_text_to_image(self):
@@ -224,3 +230,24 @@ class TestSDV2(TestCase):
 
         with self.assertRaises(ModelLoadError):
             comfy.stable_diffusion.load_checkpoint(V2_SAFETENSORS_FILEPATH, config)
+
+    @torch.no_grad()
+    def test_clip_version_propagation(self):
+        cond = self.clip.encode("Foo")
+        self.assertEqual(cond.version, comfy.conditioning.ConditioningVersion.SD2x)
+
+
+class TestGuessConfig(TestCase):
+    def test_v1(self):
+        sd, clip, vae = comfy.stable_diffusion.load_checkpoint(V1_SAFETENSORS_FILEPATH)
+        self.assertIsInstance(sd, comfy.stable_diffusion.StableDiffusionModel)
+        self.assertIsInstance(clip, comfy.clip.CLIPModel)
+        self.assertIsInstance(vae, comfy.vae.VAEModel)
+        self.assertEqual(sd.version, comfy.stable_diffusion.SDVersion.SD1x)
+
+    def test_v2(self):
+        sd, clip, vae = comfy.stable_diffusion.load_checkpoint(V2_SAFETENSORS_FILEPATH)
+        self.assertIsInstance(sd, comfy.stable_diffusion.StableDiffusionModel)
+        self.assertIsInstance(clip, comfy.clip.CLIPModel)
+        self.assertIsInstance(vae, comfy.vae.VAEModel)
+        self.assertEqual(sd.version, comfy.stable_diffusion.SDVersion.SD2x)

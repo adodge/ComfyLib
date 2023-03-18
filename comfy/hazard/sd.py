@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Optional
 
 import torch
 import contextlib
@@ -753,13 +753,32 @@ def load_checkpoint(config_path, ckpt_path, output_vae=True, output_clip=True, e
     return (ModelPatcher(model), clip, vae)
 
 
-def load_checkpoint_guess_config(ckpt_path, output_vae=True, output_clip=True, embedding_directory=None):
+def should_use_fp16():
+    if torch.cuda.is_bf16_supported():
+        return True
+
+    props = torch.cuda.get_device_properties("cuda")
+    if props.major < 7:
+        return False
+
+    #FP32 is faster on those cards?
+    nvidia_16_series = ["1660", "1650", "1630"]
+    for x in nvidia_16_series:
+        if x in props.name:
+            return False
+
+    return True
+
+
+def load_checkpoint_guess_config(ckpt_path, output_vae=True, output_clip=True, embedding_directory=None,
+                                 fp16: Optional[bool] = None):
     sd = load_torch_file(ckpt_path)
     sd_keys = sd.keys()
     clip = None
     vae = None
 
-    fp16 = model_management.should_use_fp16()
+    if fp16 is None:
+        fp16 = should_use_fp16()
 
     class WeightsLoader(torch.nn.Module):
         pass
@@ -838,8 +857,10 @@ def load_checkpoint_guess_config(ckpt_path, output_vae=True, output_clip=True, e
 
     if unet_config["context_dim"] == 1024:
         unet_config["num_head_channels"] = 64 #SD2.x
+        version = "SD2.x"
     else:
         unet_config["num_heads"] = 8 #SD1.x
+        version = "SD1.x"
 
     if unet_config["context_dim"] == 1024 and unet_config["in_channels"] == 4: #only SD2.x non inpainting models are v prediction
         k = "model.diffusion_model.output_blocks.11.1.transformer_blocks.0.norm1.bias"
@@ -853,4 +874,4 @@ def load_checkpoint_guess_config(ckpt_path, output_vae=True, output_clip=True, e
     if fp16:
         model = model.half()
 
-    return (ModelPatcher(model), clip, vae)
+    return (ModelPatcher(model), clip, vae, version)

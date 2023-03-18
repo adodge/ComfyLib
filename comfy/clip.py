@@ -1,16 +1,29 @@
+from enum import Enum
 from typing import Optional, Union
 
 import torch
-
 from comfy.conditioning import Conditioning
 from comfy.hazard.sd import CLIP, load_clip
 from comfy.util import ModelLoadError, SDType
+from comfy.hazard.sd1_clip import SD1ClipModel
+from comfy.hazard.sd2_clip import SD2ClipModel
+
+
+class CLIPModelVersion(Enum):
+    SD1x = "SD1.x"
+    SD2x = "SD2.x"
 
 
 class CLIPModel(SDType):
     def __init__(self, model: CLIP, device: Union[str, torch.device] = "cpu"):
         self._model = model
         self.to(device)
+
+        self.version: Optional[CLIPModelVersion] = None
+        if isinstance(self._model.cond_stage_model, SD2ClipModel):
+            self.version = CLIPModelVersion.SD2x
+        elif isinstance(self._model.cond_stage_model, SD1ClipModel):
+            self.version = CLIPModelVersion.SD1x
 
     def to(self, device: Union[str, torch.device]) -> "CLIPModel":
         """

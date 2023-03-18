@@ -1,3 +1,4 @@
+from enum import Enum
 from typing import Dict, Iterable, List, Optional, Tuple, Union
 
 import torch
@@ -7,6 +8,11 @@ from comfy.util import SDType, _check_divisible_by_8
 
 # Metadata keys: TODO class
 # area, strength, min_sigma, max_sigma
+
+
+class ConditioningVersion(Enum):
+    SD1x = "SD1.x"
+    SD2x = "SD2.x"
 
 
 class Conditioning(SDType):
@@ -20,8 +26,18 @@ class Conditioning(SDType):
         self._data: List[Tuple[Tensor, Dict]] = []
         if data is not None:
             self._data.append((data, meta))
+            data.size()
 
         self.to(device)
+
+        self.version: Optional[ConditioningVersion] = None
+        for d in self._data:
+            if d[0].size()[2] == 1024:
+                self.version = ConditioningVersion.SD2x
+            elif d[0].size()[2] == 768:
+                self.version = ConditioningVersion.SD1x
+            break
+
 
     def to(self, device: Union[str, torch.device]) -> "Conditioning":
         """
