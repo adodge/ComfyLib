@@ -3,11 +3,11 @@ import torch
 import torch.nn.functional as F
 from contextlib import contextmanager
 
-from comfy.hazard.ldm.modules.diffusionmodules.model import Encoder, Decoder
-from comfy.hazard.ldm.modules.distributions.distributions import DiagonalGaussianDistribution
+from ..modules.diffusionmodules.model import Encoder, Decoder
+from ..modules.distributions.distributions import DiagonalGaussianDistribution
 
-from comfy.hazard.ldm.util import instantiate_from_config
-from comfy.hazard.ldm.modules.ema import LitEma
+from ..util import instantiate_from_config
+from ..modules.ema import LitEma
 
 # class AutoencoderKL(pl.LightningModule):
 class AutoencoderKL(torch.nn.Module):

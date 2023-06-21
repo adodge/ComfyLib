@@ -3,9 +3,9 @@ from typing import Union
 import torch
 from torch import Tensor
 
-from comfy.hazard.sd import VAE
-from comfy.latent_image import GreyscaleImage, LatentImage, RGBImage
-from comfy.util import SDType, _check_divisible_by_64, _check_divisible_by_8
+from .hazard.sd import VAE
+from .latent_image import GreyscaleImage, LatentImage, RGBImage
+from .util import SDType, _check_divisible_by_64, _check_divisible_by_8
 
 
 class VAEModel(SDType):
@@ -33,7 +33,6 @@ class VAEModel(SDType):
         # VAELoader
         return VAEModel(VAE(ckpt_path=model_filepath), device=device)
 
-    @SDType.requires_cuda
     def encode(self, image: RGBImage) -> LatentImage:
         # VAEEncode
         # XXX something's wrong here, I think
@@ -41,7 +40,6 @@ class VAEModel(SDType):
         img = self._model.encode(image.to_tensor().to(self.device))
         return LatentImage(img, device=self.device)
 
-    @SDType.requires_cuda
     def masked_encode(self, image: RGBImage, mask: GreyscaleImage) -> LatentImage:
         # VAEEncodeForInpaint
 
@@ -67,7 +65,6 @@ class VAEModel(SDType):
         img = self._model.encode(image_t)
         return LatentImage(img, mask=mask_erosion[0].round(), device=self.device)
 
-    @SDType.requires_cuda
     def decode(self, latent_image: LatentImage) -> RGBImage:
         # VAEDecode
 

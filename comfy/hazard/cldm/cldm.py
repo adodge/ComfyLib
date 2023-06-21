@@ -4,16 +4,16 @@
 import torch as th
 import torch.nn as nn
 
-from comfy.hazard.ldm.modules.diffusionmodules.util import (
+from ..ldm.modules.diffusionmodules.util import (
     conv_nd,
     linear,
     zero_module,
     timestep_embedding,
 )
 
-from comfy.hazard.ldm.modules.attention import SpatialTransformer
-from comfy.hazard.ldm.modules.diffusionmodules.openaimodel import UNetModel, TimestepEmbedSequential, ResBlock, Downsample, AttentionBlock
-from comfy.hazard.ldm.util import log_txt_as_img, exists, instantiate_from_config
+from ..ldm.modules.attention import SpatialTransformer
+from ..ldm.modules.diffusionmodules.openaimodel import UNetModel, TimestepEmbedSequential, ResBlock, Downsample, AttentionBlock
+from ..ldm.util import log_txt_as_img, exists, instantiate_from_config
 
 
 

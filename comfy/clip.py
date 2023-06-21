@@ -2,11 +2,11 @@ from enum import Enum
 from typing import Optional, Union
 
 import torch
-from comfy.conditioning import Conditioning
-from comfy.hazard.sd import CLIP, load_clip
-from comfy.util import ModelLoadError, SDType
-from comfy.hazard.sd1_clip import SD1ClipModel
-from comfy.hazard.sd2_clip import SD2ClipModel
+from .conditioning import Conditioning
+from .hazard.sd import CLIP, load_clip
+from .util import ModelLoadError, SDType
+from .hazard.sd1_clip import SD1ClipModel
+from .hazard.sd2_clip import SD2ClipModel
 
 
 class CLIPModelVersion(Enum):

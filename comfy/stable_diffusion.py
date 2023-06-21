@@ -6,14 +6,14 @@ from typing import Optional, Tuple, Union
 import torch
 from omegaconf import DictConfig, OmegaConf
 
-from comfy.hazard.sd import load_checkpoint as _load_checkpoint, ModelPatcher, load_checkpoint_guess_config as _load_checkpoint_guess_config
-from comfy.clip import CLIPModel
-from comfy.conditioning import Conditioning
-from comfy.hazard.ldm.models.diffusion.ddpm import LatentDiffusion
-from comfy.hazard.nodes import common_ksampler
-from comfy.latent_image import LatentImage
-from comfy.util import ModelLoadError, SDType
-from comfy.vae import VAEModel
+from .hazard.sd import load_checkpoint as _load_checkpoint, ModelPatcher, load_checkpoint_guess_config as _load_checkpoint_guess_config
+from .clip import CLIPModel
+from .conditioning import Conditioning
+from .hazard.ldm.models.diffusion.ddpm import LatentDiffusion
+from .hazard.nodes import common_ksampler
+from .latent_image import LatentImage
+from .util import ModelLoadError, SDType
+from .vae import VAEModel
 
 
 class SDVersion(Enum):
@@ -52,6 +52,7 @@ class BuiltInCheckpointConfigName(Enum):
 
 class CheckpointConfig:
     def __init__(self, config_path: str):
+        self.path = config_path
         self.config = OmegaConf.load(config_path)
 
     @classmethod
@@ -60,10 +61,11 @@ class CheckpointConfig:
         return cls(config_path=path)
 
     def to_file_like(self):
-        file_like = io.StringIO()
-        OmegaConf.save(self.config, f=file_like)
-        file_like.seek(0)
-        return file_like
+        return self.path
+        # file_like = io.StringIO()
+        # OmegaConf.save(self.config, f=file_like)
+        # file_like.seek(0)
+        # return file_like
 
     def to_omegaconf(self) -> DictConfig:
         return self.config
@@ -92,7 +94,7 @@ class StableDiffusionModel(SDType):
         if torch_device == self.device:
             return self
 
-        self._model.to(torch_device)
+        self._model.model.to(torch_device)
         self.device = torch_device
         return self
 
@@ -107,7 +109,6 @@ class StableDiffusionModel(SDType):
         sd, _, _ = load_checkpoint(checkpoint_filepath, config=config, device=device)
         return sd
 
-    @SDType.requires_cuda
     def sample(
         self,
         positive: Conditioning,
@@ -123,7 +124,6 @@ class StableDiffusionModel(SDType):
         # KSampler
 
         img = common_ksampler(
-            device=self.device,
             model=self._model,
             seed=seed,
             steps=steps,
@@ -138,7 +138,6 @@ class StableDiffusionModel(SDType):
 
         return LatentImage(img[0]["samples"], device=self.device)
 
-    @SDType.requires_cuda
     def advanced_sample(
         self,
         positive: Conditioning,
@@ -165,7 +164,6 @@ class StableDiffusionModel(SDType):
             disable_noise = True
 
         img = common_ksampler(
-            device=self.device,
             model=self._model,
             seed=seed,
             steps=steps,
@@ -216,7 +214,7 @@ def load_checkpoint(
         raise ModelLoadError("Failed to load checkpoint.") from e
 
     return (
-        StableDiffusionModel(stable_diffusion_model_patcher.model, device=device, version=version),
+        StableDiffusionModel(stable_diffusion_model_patcher, device=device, version=version),
         CLIPModel(clip, device=device),
         VAEModel(vae, device=device),
     )

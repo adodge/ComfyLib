@@ -1,9 +1,7 @@
 #taken from https://github.com/TencentARC/T2I-Adapter
 
-import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from comfy.hazard.ldm.modules.attention import SpatialTransformer, BasicTransformerBlock
+from ..ldm.modules.attention import SpatialTransformer, BasicTransformerBlock
 
 def conv_nd(dims, *args, **kwargs):
     """

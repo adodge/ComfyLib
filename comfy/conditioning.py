@@ -4,7 +4,7 @@ from typing import Dict, Iterable, List, Optional, Tuple, Union
 import torch
 from torch import Tensor
 
-from comfy.util import SDType, _check_divisible_by_8
+from .util import SDType, _check_divisible_by_8
 
 # Metadata keys: TODO class
 # area, strength, min_sigma, max_sigma

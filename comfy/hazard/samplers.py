@@ -1,4 +1,4 @@
-from . import model_management
+from .. import model_management
 from .k_diffusion import sampling as k_diffusion_sampling
 from .k_diffusion import external as k_diffusion_external
 from .extra_samplers import uni_pc
