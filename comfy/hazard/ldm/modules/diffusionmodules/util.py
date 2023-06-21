@@ -15,8 +15,8 @@ import torch.nn as nn
 import numpy as np
 from einops import repeat
 
-from comfy.hazard.ldm.util import instantiate_from_config
-
+from ....ldm.util import instantiate_from_config
+from .... import ops
 
 def make_beta_schedule(schedule, n_timestep, linear_start=1e-4, linear_end=2e-2, cosine_s=8e-3):
     if schedule == "linear":
@@ -33,6 +33,13 @@ def make_beta_schedule(schedule, n_timestep, linear_start=1e-4, linear_end=2e-2,
         alphas = alphas / alphas[0]
         betas = 1 - alphas[1:] / alphas[:-1]
         betas = np.clip(betas, a_min=0, a_max=0.999)
+
+    elif schedule == "squaredcos_cap_v2":  # used for karlo prior
+        # return early
+        return betas_for_alpha_bar(
+            n_timestep,
+            lambda t: math.cos((t + 0.008) / 1.008 * math.pi / 2) ** 2,
+        )
 
     elif schedule == "sqrt_linear":
         betas = torch.linspace(linear_start, linear_end, n_timestep, dtype=torch.float64)
@@ -199,13 +206,13 @@ def mean_flat(tensor):
     return tensor.mean(dim=list(range(1, len(tensor.shape))))
 
 
-def normalization(channels):
+def normalization(channels, dtype=None):
     """
     Make a standard normalization layer.
     :param channels: number of input channels.
     :return: an nn.Module for normalization.
     """
-    return GroupNorm32(32, channels)
+    return GroupNorm32(32, channels, dtype=dtype)
 
 
 # PyTorch 1.7 has SiLU, but we support PyTorch 1.5.
@@ -218,6 +225,7 @@ class GroupNorm32(nn.GroupNorm):
     def forward(self, x):
         return super().forward(x.float()).type(x.dtype)
 
+
 def conv_nd(dims, *args, **kwargs):
     """
     Create a 1D, 2D, or 3D convolution module.
@@ -225,7 +233,7 @@ def conv_nd(dims, *args, **kwargs):
     if dims == 1:
         return nn.Conv1d(*args, **kwargs)
     elif dims == 2:
-        return nn.Conv2d(*args, **kwargs)
+        return ops.Conv2d(*args, **kwargs)
     elif dims == 3:
         return nn.Conv3d(*args, **kwargs)
     raise ValueError(f"unsupported dimensions: {dims}")
@@ -235,7 +243,7 @@ def linear(*args, **kwargs):
     """
     Create a linear module.
     """
-    return nn.Linear(*args, **kwargs)
+    return ops.Linear(*args, **kwargs)
 
 
 def avg_pool_nd(dims, *args, **kwargs):

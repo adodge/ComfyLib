@@ -1,60 +1,42 @@
 import torch
 
-import comfy.hazard.samplers
-from comfy.hazard.ldm.models.diffusion.ddpm import LatentDiffusion
+from . import samplers
+from .ldm.models.diffusion.ddpm import LatentDiffusion
+from .. import model_management
+from .. import sample
 
 
-def common_ksampler(device, model: LatentDiffusion, seed: int, steps: int, cfg: float, sampler_name: str, scheduler: str,
-                    positive, negative, latent, denoise=1.0, disable_noise=False, start_step=None, last_step=None,
-                    force_full_denoise=False):
+def common_ksampler(model, seed, steps, cfg, sampler_name, scheduler, positive, negative, latent, denoise=1.0, disable_noise=False, start_step=None, last_step=None, force_full_denoise=False):
+    device = model_management.get_torch_device()
     latent_image = latent["samples"]
-    noise_mask = None
 
     if disable_noise:
-        noise = torch.zeros(latent_image.size(), dtype=latent_image.dtype, layout=latent_image.layout, device=device)
+        noise = torch.zeros(latent_image.size(), dtype=latent_image.dtype, layout=latent_image.layout, device="cpu")
     else:
-        g_cuda = torch.Generator(device='cuda')
-        noise = torch.randn(latent_image.size(), dtype=latent_image.dtype, layout=latent_image.layout, generator=g_cuda.manual_seed(seed), device=device)
+        batch_inds = latent["batch_index"] if "batch_index" in latent else None
+        noise = sample.prepare_noise(latent_image, seed, batch_inds)
 
+    noise_mask = None
     if "noise_mask" in latent:
-        noise_mask = latent['noise_mask']
-        noise_mask = torch.nn.functional.interpolate(noise_mask[None], size=(noise.shape[2], noise.shape[3]), mode="bilinear")
-        noise_mask = noise_mask.round()
-        noise_mask = torch.cat([noise_mask] * noise.shape[1], dim=1)
-        noise_mask = torch.cat([noise_mask] * noise.shape[0])
+        noise_mask = latent["noise_mask"]
 
-    noise = noise.to(device)
+    preview_format = "JPEG"
+    if preview_format not in ["JPEG", "PNG"]:
+        preview_format = "JPEG"
 
-    positive_copy = []
-    negative_copy = []
+    # previewer = latent_preview.get_previewer(device)
 
-    control_nets = []
-    for p in positive:
-        t = p[0]
-        if t.shape[0] < noise.shape[0]:
-            t = torch.cat([t] * noise.shape[0])
-        if 'control' in p[1]:
-            control_nets += [p[1]['control']]
-        positive_copy += [[t] + p[1:]]
-    for n in negative:
-        t = n[0]
-        if t.shape[0] < noise.shape[0]:
-            t = torch.cat([t] * noise.shape[0])
-        negative_copy += [[t] + n[1:]]
+    # pbar = comfy.utils.ProgressBar(steps)
+    def callback(step, x0, x, total_steps):
+        preview_bytes = None
+        # if previewer:
+        #     preview_bytes = previewer.decode_latent_to_preview_image(preview_format, x0)
+        # pbar.update_absolute(step + 1, total_steps, preview_bytes)
+        print(f'step:{step}/{total_steps}')
 
-    control_net_models = []
-    for x in control_nets:
-        control_net_models += x.get_control_models()
-    if control_net_models:
-        print("Controlnet models not loaded: ", control_net_models)
-    # model_management.load_controlnet_gpu(control_net_models)
-
-    sampler = comfy.hazard.samplers.KSampler(model, steps=steps, device=device, sampler=sampler_name, scheduler=scheduler, denoise=denoise)
-
-    samples = sampler.sample(noise, positive_copy, negative_copy, cfg=cfg, latent_image=latent_image, start_step=start_step, last_step=last_step, force_full_denoise=force_full_denoise, denoise_mask=noise_mask)
-    for c in control_nets:
-        c.cleanup()
-
+    samples = sample.sample(model, noise, steps, cfg, sampler_name, scheduler, positive, negative, latent_image,
+                                  denoise=denoise, disable_noise=disable_noise, start_step=start_step, last_step=last_step,
+                                  force_full_denoise=force_full_denoise, noise_mask=noise_mask, callback=callback)
     out = latent.copy()
     out["samples"] = samples
     return (out, )

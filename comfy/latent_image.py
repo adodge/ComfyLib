@@ -6,8 +6,8 @@ import torch
 from PIL import Image
 from torch import Tensor
 
-from comfy.hazard.utils import common_upscale
-from comfy.util import SDType, _check_divisible_by_8
+from .hazard.utils import common_upscale
+from .util import SDType, _check_divisible_by_8
 
 
 class UpscaleMethod(Enum):
